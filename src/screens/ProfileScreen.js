@@ -1,5 +1,3 @@
-"use client"
-
 import { useState } from "react"
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Switch } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
@@ -52,7 +50,6 @@ export default function ProfileScreen() {
   return (
     <LinearGradient colors={["#1F2937", "#8B5CF6", "#1F2937"]} style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("Dashboard")}>
             <Text style={styles.backButtonText}>← Back to Dashboard</Text>
@@ -63,7 +60,6 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Profile Header */}
         <View style={styles.profileCard}>
           <View style={styles.profileContent}>
             <View style={styles.profileAvatar}>
@@ -124,7 +120,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Statistics */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <View style={styles.statIcon}>
@@ -159,7 +154,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Recent Activity */}
         <View style={styles.activityCard}>
           <Text style={styles.activityTitle}>Recent Activity</Text>
           <Text style={styles.activitySubtitle}>Your latest quiz battles</Text>
@@ -193,7 +187,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Settings */}
         <View style={styles.settingsCard}>
           <Text style={styles.settingsTitle}>Settings</Text>
           <Text style={styles.settingsSubtitle}>Customize your game experience</Text>

@@ -1,5 +1,3 @@
-"use client"
-
 import { useState } from "react"
 import {
   View,
@@ -44,13 +42,13 @@ export default function AuthScreen() {
     <LinearGradient colors={["#8B5CF6", "#3B82F6", "#EC4899"]} style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoid}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Background Elements */}
+         
           <View style={styles.backgroundElements}>
             <View style={[styles.floatingElement, styles.element1]} />
             <View style={[styles.floatingElement, styles.element2]} />
           </View>
 
-          {/* Logo */}
+         
           <View style={styles.header}>
             <View style={styles.logoContainer}>
               <Text style={styles.logoEmoji}>🧠</Text>
@@ -59,9 +57,9 @@ export default function AuthScreen() {
             <Text style={styles.subtitle}>Sign in to start your quiz journey</Text>
           </View>
 
-          {/* Auth Form */}
+          
           <View style={styles.formContainer}>
-            {/* Tab Selector */}
+            
             <View style={styles.tabContainer}>
               <TouchableOpacity style={[styles.tab, isLogin && styles.activeTab]} onPress={() => setIsLogin(true)}>
                 <Text style={[styles.tabText, isLogin && styles.activeTabText]}>Sign In</Text>
@@ -71,7 +69,7 @@ export default function AuthScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Login Form */}
+            
             {isLogin ? (
               <View style={styles.form}>
                 <View style={styles.inputContainer}>
@@ -108,7 +106,7 @@ export default function AuthScreen() {
                 <Text style={styles.demoText}>Demo: test@example.com / password</Text>
               </View>
             ) : (
-              /* Register Form */
+              
               <View style={styles.form}>
                 <View style={styles.inputContainer}>
                   <Text style={styles.label}>Username</Text>
@@ -168,7 +166,7 @@ export default function AuthScreen() {
             )}
           </View>
 
-          {/* Back Button */}
+          
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("Welcome")}>
             <Text style={styles.backButtonText}>← Back to Welcome</Text>
           </TouchableOpacity>

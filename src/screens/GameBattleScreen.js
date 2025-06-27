@@ -1,5 +1,3 @@
-"use client"
-
 import { useEffect, useState } from "react"
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
@@ -72,7 +70,6 @@ export default function GameBattleScreen() {
     return "#10B981"
   }
 
-  // Countdown phase
   if (gamePhase === "countdown") {
     return (
       <LinearGradient colors={["#1F2937", "#8B5CF6", "#1F2937"]} style={styles.container}>
@@ -89,7 +86,6 @@ export default function GameBattleScreen() {
   return (
     <LinearGradient colors={["#1F2937", "#8B5CF6", "#1F2937"]} style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header */}
         <View style={styles.header}>
           <View style={styles.questionInfo}>
             <Text style={styles.questionNumber}>
@@ -116,14 +112,14 @@ export default function GameBattleScreen() {
           )}
         </View>
 
-        {/* Progress Bar */}
+        
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: `${progress}%` }]} />
           </View>
         </View>
 
-        {/* Players Score */}
+        
         <View style={styles.playersContainer}>
           <View style={styles.playerCard}>
             <Text style={styles.playerAvatar}>{user.avatar}</Text>
@@ -148,7 +144,7 @@ export default function GameBattleScreen() {
           </View>
         </View>
 
-        {/* Question */}
+        
         <View style={styles.questionContainer}>
           <View style={styles.categoryBadge}>
             <Text style={styles.categoryBadgeText}>
@@ -162,7 +158,7 @@ export default function GameBattleScreen() {
           )}
         </View>
 
-        {/* Answers */}
+        
         <View style={styles.answersContainer}>
           {currentQuestion.options.map((option, index) => (
             <TouchableOpacity
@@ -191,7 +187,7 @@ export default function GameBattleScreen() {
           ))}
         </View>
 
-        {/* Game Phase Status */}
+        
         <View style={styles.statusContainer}>
           {gamePhase === "question" && playerAnswer === null && (
             <View style={styles.statusContent}>

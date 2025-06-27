@@ -1,5 +1,3 @@
-"use client"
-
 import { createContext, useContext, useEffect, useState } from "react"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { useToast } from "./ToastContext"
@@ -19,7 +17,6 @@ export function AuthProvider({ children }) {
     try {
       const token = await AsyncStorage.getItem("authToken")
       if (token) {
-        // Simulate API call to verify token
         await new Promise((resolve) => setTimeout(resolve, 1000))
 
         const mockUser = {

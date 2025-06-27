@@ -44,7 +44,7 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <LinearGradient colors={["#f8fafc", "#e2e8f0", "#cbd5e1"]} style={styles.container}>
-      {/* Background elements */}
+      
       <View style={styles.backgroundShapes}>
         <LinearGradient colors={["#8b5cf6", "#a78bfa"]} style={[styles.shape, styles.shape1]} />
         <LinearGradient colors={["#06b6d4", "#67e8f9"]} style={[styles.shape, styles.shape2]} />
@@ -53,7 +53,7 @@ export default function LoginScreen({ navigation }) {
 
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardView}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Header */}
+          
           <Animatable.View animation="fadeInDown" delay={200} style={styles.header}>
             <View style={styles.logoContainer}>
               <LinearGradient colors={["#8b5cf6", "#a78bfa"]} style={styles.logoGradient}>
@@ -64,10 +64,10 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.subtitle}>Sign in to your account</Text>
           </Animatable.View>
 
-          {/* Login Card */}
+          
           <Animatable.View animation="fadeInUp" delay={400} style={styles.loginCard}>
                       
-            {/* Social Login */}
+           
             <TouchableOpacity
               style={[styles.socialButton, { opacity: 0.6 }]}
               onPress={handleGoogleSignIn}
@@ -78,14 +78,14 @@ export default function LoginScreen({ navigation }) {
               <Text style={styles.comingSoon}>(Coming Soon)</Text>
             </TouchableOpacity>
 
-            {/* Divider */}
+            
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
               <Text style={styles.dividerText}>or</Text>
               <View style={styles.dividerLine} />
             </View>
 
-            {/* Email */}
+            
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Email</Text>
               <View style={styles.inputContainer}>
@@ -103,7 +103,7 @@ export default function LoginScreen({ navigation }) {
               </View>
             </View>
 
-            {/* Password */}
+            
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Password</Text>
               <View style={styles.inputContainer}>
@@ -120,12 +120,12 @@ export default function LoginScreen({ navigation }) {
               </View>
             </View>
 
-            {/* Forgot Password */}
+           
             <TouchableOpacity style={styles.forgotPassword}>
               <Text style={styles.forgotPasswordText}>Forgot password?</Text>
             </TouchableOpacity>
 
-            {/* Login Button */}
+            
             <TouchableOpacity
               style={[styles.loginButton, loading && styles.disabledButton]}
               onPress={handleLogin}
@@ -137,7 +137,6 @@ export default function LoginScreen({ navigation }) {
               </LinearGradient>
             </TouchableOpacity>
 
-            {/* Register Link */}
             <View style={styles.registerContainer}>
               <Text style={styles.registerText}>Don't have an account? </Text>
               <TouchableOpacity onPress={() => navigation.navigate("Register")}>

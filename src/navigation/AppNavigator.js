@@ -2,7 +2,6 @@ import { createStackNavigator } from "@react-navigation/stack"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { Ionicons } from "@expo/vector-icons"
 
-// Import screens
 import WelcomeScreen from "../screens/WelcomeScreen"
 import OnboardingScreen from "../screens/OnboardingScreen"
 import QuickPlayScreen from "../screens/QuickPlayScreen"
@@ -17,7 +16,6 @@ import ProfileScreen from "../screens/ProfileScreen"
 const Stack = createStackNavigator()
 const Tab = createBottomTabNavigator()
 
-// Main Tab Navigator for authenticated users
 const MainTabNavigator = () => {
   return (
     <Tab.Navigator
@@ -55,7 +53,6 @@ const MainTabNavigator = () => {
   )
 }
 
-// Main App Navigator - REMOVED NavigationContainer from here
 const AppNavigator = () => {
   return (
     <Stack.Navigator
@@ -79,19 +76,16 @@ const AppNavigator = () => {
         },
       }}
     >
-      {/* Onboarding Flow */}
+      
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       <Stack.Screen name="QuickPlay" component={QuickPlayScreen} />
 
-      {/* Auth Flow */}
       <Stack.Screen name="Auth" component={AuthScreen} />
 
-      {/* Main App Flow */}
       <Stack.Screen name="Main" component={MainTabNavigator} />
       <Stack.Screen name="CategorySelection" component={CategorySelectionScreen} />
 
-      {/* Game Flow */}
       <Stack.Screen name="GameLobby" component={GameLobbyScreen} />
       <Stack.Screen name="GameBattle" component={GameBattleScreen} />
       <Stack.Screen name="GameResults" component={GameResultsScreen} />

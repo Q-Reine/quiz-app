@@ -82,13 +82,13 @@ class GameService {
   }
 
   async createRoom(categoryId, difficulty) {
-    // Simulate network delay
+    
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
     const room = {
       id: Date.now(),
       room_code: Math.random().toString(36).substring(2, 8).toUpperCase(),
-      player1_id: 1, // Current user
+      player1_id: 1, 
       player2_id: null,
       status: "waiting",
       current_question: 0,
@@ -108,7 +108,7 @@ class GameService {
   }
 
   async joinRoom(roomCode) {
-    // Simulate network delay
+    
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
     const room = this.rooms.find((r) => r.room_code === roomCode && r.status === "waiting")
@@ -120,8 +120,8 @@ class GameService {
       }
     }
 
-    // Update room with second player
-    room.player2_id = 2 // Mock opponent
+    
+    room.player2_id = 2
     room.status = "in_progress"
 
     return {
@@ -136,7 +136,7 @@ class GameService {
   }
 
   async submitAnswer({ roomId, questionId, answer, timeTaken }) {
-    // Simulate network delay
+    
     await new Promise((resolve) => setTimeout(resolve, 500))
 
     const question = this.questions.find((q) => q.id === questionId)
@@ -149,7 +149,7 @@ class GameService {
   }
 
   async getCategories() {
-    // Simulate network delay
+    
     await new Promise((resolve) => setTimeout(resolve, 500))
 
     return {
@@ -159,7 +159,7 @@ class GameService {
   }
 
   async getLeaderboard() {
-    // Simulate network delay
+    
     await new Promise((resolve) => setTimeout(resolve, 500))
 
     return {
@@ -169,7 +169,7 @@ class GameService {
   }
 
   async getUserStats() {
-    // Simulate network delay
+    
     await new Promise((resolve) => setTimeout(resolve, 500))
 
     return {
@@ -184,7 +184,7 @@ class GameService {
   }
 
   async getUserAchievements() {
-    // Simulate network delay
+    
     await new Promise((resolve) => setTimeout(resolve, 500))
 
     return {
@@ -194,7 +194,7 @@ class GameService {
   }
 
   async getRecentGames() {
-    // Simulate network delay
+    
     await new Promise((resolve) => setTimeout(resolve, 500))
 
     return {
@@ -206,7 +206,6 @@ class GameService {
   getQuestionsByCategory(categoryId, difficulty, count = 10) {
     const categoryQuestions = this.questions.filter((q) => q.category_id === categoryId && q.difficulty === difficulty)
 
-    // If not enough questions in category/difficulty, get from all categories
     if (categoryQuestions.length < count) {
       const allQuestions = this.questions.filter((q) => q.difficulty === difficulty)
       return allQuestions.slice(0, count)

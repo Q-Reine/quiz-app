@@ -1,10 +1,7 @@
-"use client"
-
 import { createStackNavigator } from "@react-navigation/stack"
 import { useAuth } from "../contexts/AuthContext"
 import { useGame } from "../contexts/GameContext"
 
-// Screens
 import LoadingScreen from "../components/LoadingScreen"
 import WelcomeScreen from "../screens/WelcomeScreen"
 import AuthScreen from "../screens/AuthScreen"
@@ -25,7 +22,6 @@ export default function MainNavigator() {
     return <LoadingScreen />
   }
 
-  // Determine initial route based on game state
   const getInitialRouteName = () => {
     if (!user) return "Welcome"
     if (currentRoom) {

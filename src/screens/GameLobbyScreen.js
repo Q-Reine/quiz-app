@@ -1,5 +1,3 @@
-"use client"
-
 import { useEffect, useState } from "react"
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
@@ -23,7 +21,6 @@ export default function GameLobbyScreen() {
 
   useEffect(() => {
     if (currentRoom && currentRoom.players.length === 2 && currentRoom.status === "waiting") {
-      // Start countdown when room is full
       setCountdown(5)
       const timer = setInterval(() => {
         setCountdown((prev) => {
@@ -35,7 +32,6 @@ export default function GameLobbyScreen() {
         })
       }, 1000)
 
-      // Auto-start game when countdown reaches 0
       const startTimer = setTimeout(() => {
         startGame()
       }, 5000)
@@ -49,7 +45,6 @@ export default function GameLobbyScreen() {
 
   const copyRoomCode = () => {
     if (currentRoom?.code) {
-      // In a real app, you'd use Clipboard API
       showToast("Room Code Copied!", "Share this code with your friends", "success")
     }
   }
@@ -78,7 +73,6 @@ export default function GameLobbyScreen() {
 
   return (
     <LinearGradient colors={["#1F2937", "#8B5CF6", "#1F2937"]} style={styles.container}>
-      {/* Countdown Overlay */}
       {countdown !== null && countdown > 0 && (
         <View style={styles.countdownOverlay}>
           <View style={styles.countdownContent}>
@@ -92,7 +86,7 @@ export default function GameLobbyScreen() {
       )}
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header */}
+        
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleLeaveRoom}>
             <Text style={styles.backButtonText}>← Leave Room</Text>
@@ -101,7 +95,6 @@ export default function GameLobbyScreen() {
           <View style={styles.headerSpacer} />
         </View>
 
-        {/* Room Info */}
         <View style={styles.roomInfoCard}>
           <View style={styles.roomHeader}>
             <Text style={styles.roomTitle}>👥 Room: {currentRoom.code}</Text>
@@ -132,9 +125,7 @@ export default function GameLobbyScreen() {
           </View>
         </View>
 
-        {/* Players */}
         <View style={styles.playersContainer}>
-          {/* Current User */}
           <View style={styles.playerCard}>
             <View style={styles.playerHeader}>
               {isHost && (
@@ -160,7 +151,7 @@ export default function GameLobbyScreen() {
             </View>
           </View>
 
-          {/* Opponent or Waiting */}
+          
           <View style={styles.playerCard}>
             <View style={styles.playerHeader}>
               <Text style={styles.playerTitle}>{opponent ? "Player 2" : "Waiting for Player..."}</Text>
@@ -199,7 +190,6 @@ export default function GameLobbyScreen() {
           </View>
         </View>
 
-        {/* Game Rules */}
         <View style={styles.rulesCard}>
           <Text style={styles.rulesTitle}>⚙️ Game Rules</Text>
 
@@ -222,7 +212,6 @@ export default function GameLobbyScreen() {
           </View>
         </View>
 
-        {/* Start Game Button */}
         {isHost && (
           <View style={styles.startGameContainer}>
             <TouchableOpacity
@@ -243,7 +232,7 @@ export default function GameLobbyScreen() {
           </View>
         )}
 
-        {/* Status for non-host */}
+        
         {!isHost && (
           <View style={styles.statusContainer}>
             {canStart ? (

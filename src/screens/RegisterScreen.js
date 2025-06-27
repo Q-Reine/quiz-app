@@ -56,7 +56,7 @@ export default function RegisterScreen({ navigation }) {
 
   return (
     <LinearGradient colors={["#f8fafc", "#e2e8f0", "#cbd5e1"]} style={styles.container}>
-      {/* Background elements */}
+      
       <View style={styles.backgroundShapes}>
         <LinearGradient colors={["#ec4899", "#f472b6"]} style={[styles.shape, styles.shape1]} />
         <LinearGradient colors={["#06b6d4", "#67e8f9"]} style={[styles.shape, styles.shape2]} />
@@ -89,7 +89,7 @@ export default function RegisterScreen({ navigation }) {
               <Text style={styles.comingSoon}>(Coming Soon)</Text>
             </TouchableOpacity>
 
-            {/* Divider */}
+            {/* The Line */}
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
               <Text style={styles.dividerText}>or</Text>
@@ -165,7 +165,7 @@ export default function RegisterScreen({ navigation }) {
               </View>
             </View>
 
-            {/* Terms */}
+            
             <View style={styles.termsContainer}>
               <Text style={styles.termsText}>
                 By creating an account, you agree to our <Text style={styles.termsLink}>Terms of Service</Text> and{" "}
@@ -173,7 +173,7 @@ export default function RegisterScreen({ navigation }) {
               </Text>
             </View>
 
-            {/* Register Button */}
+            
             <TouchableOpacity
               style={[styles.registerButton, loading && styles.disabledButton]}
               onPress={handleRegister}
@@ -185,7 +185,7 @@ export default function RegisterScreen({ navigation }) {
               </LinearGradient>
             </TouchableOpacity>
 
-            {/* Login Link */}
+            
             <View style={styles.loginContainer}>
               <Text style={styles.loginText}>Already have an account? </Text>
               <TouchableOpacity onPress={() => navigation.navigate("Login")}>

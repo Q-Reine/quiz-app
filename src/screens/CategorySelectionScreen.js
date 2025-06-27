@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useRef, useEffect } from "react"
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Animated, Dimensions } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
@@ -59,7 +57,7 @@ const CategorySelectionScreen = ({ navigation }) => {
       navigation.navigate("GameBattle", {
         category: selectedCategory,
         gameMode: selectedGameMode,
-        playerName: "Player", // This could come from user context
+        playerName: "Player", 
       })
     }
   }
@@ -88,7 +86,7 @@ const CategorySelectionScreen = ({ navigation }) => {
               },
             ]}
           >
-            {/* Categories Section */}
+            
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Choose Category</Text>
               <View style={styles.categoriesGrid}>
@@ -105,7 +103,6 @@ const CategorySelectionScreen = ({ navigation }) => {
               </View>
             </View>
 
-            {/* Game Modes Section */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Choose Game Mode</Text>
               <View style={styles.gameModesGrid}>
@@ -127,7 +124,7 @@ const CategorySelectionScreen = ({ navigation }) => {
               </View>
             </View>
 
-            {/* Selection Summary */}
+            
             {(selectedCategory || selectedGameMode) && (
               <View style={styles.summaryCard}>
                 <Text style={styles.summaryTitle}>Your Selection</Text>
@@ -146,7 +143,7 @@ const CategorySelectionScreen = ({ navigation }) => {
               </View>
             )}
 
-            {/* Start Button */}
+            
             {canStart && (
               <Animated.View style={styles.startButtonContainer}>
                 <TouchableOpacity onPress={handleStartGame} style={styles.startButton}>
@@ -160,7 +157,6 @@ const CategorySelectionScreen = ({ navigation }) => {
           </Animated.View>
         </ScrollView>
 
-        {/* Animated Background Elements */}
         <View style={styles.backgroundElements}>
           <Animated.View style={[styles.circle1, { opacity: fadeAnim }]} />
           <Animated.View style={[styles.circle2, { opacity: fadeAnim }]} />

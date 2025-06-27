@@ -1,5 +1,3 @@
-"use client"
-
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { useNavigation } from "@react-navigation/native"
@@ -34,7 +32,7 @@ export default function GameResultsScreen() {
   return (
     <LinearGradient colors={["#1F2937", "#8B5CF6", "#1F2937"]} style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Result Header */}
+        
         <View style={styles.resultHeader}>
           <View style={styles.resultIcon}>
             {isWinner ? (
@@ -57,12 +55,11 @@ export default function GameResultsScreen() {
           </Text>
         </View>
 
-        {/* Final Scores */}
+        
         <View style={styles.scoresCard}>
           <Text style={styles.scoresTitle}>Final Scores</Text>
 
           <View style={styles.scoresContainer}>
-            {/* User Score */}
             <View style={[styles.scoreCard, isWinner && styles.winnerCard]}>
               <View style={styles.scoreAvatar}>
                 <Text style={styles.scoreAvatarText}>{user.avatar}</Text>
@@ -79,7 +76,7 @@ export default function GameResultsScreen() {
               )}
             </View>
 
-            {/* Opponent Score */}
+            
             <View style={[styles.scoreCard, !isWinner && !isDraw && styles.winnerCard]}>
               <View style={[styles.scoreAvatar, styles.opponentAvatar]}>
                 <Text style={styles.scoreAvatarText}>{opponent?.avatar}</Text>
@@ -98,7 +95,6 @@ export default function GameResultsScreen() {
           </View>
         </View>
 
-        {/* Game Statistics */}
         <View style={styles.statsCard}>
           <Text style={styles.statsTitle}>Game Statistics</Text>
 
@@ -141,7 +137,6 @@ export default function GameResultsScreen() {
           </View>
         </View>
 
-        {/* ELO Change */}
         <View style={styles.eloCard}>
           <View style={styles.eloHeader}>
             <Text style={styles.eloIcon}>📈</Text>
@@ -160,7 +155,6 @@ export default function GameResultsScreen() {
           <Text style={styles.eloNewRating}>New Rating: {user.eloRating + (isWinner ? 15 : isDraw ? 0 : -10)}</Text>
         </View>
 
-        {/* Action Buttons */}
         <View style={styles.buttonsContainer}>
           <TouchableOpacity style={styles.primaryButton} onPress={handlePlayAgain}>
             <LinearGradient colors={["#10B981", "#3B82F6"]} style={styles.buttonGradient}>

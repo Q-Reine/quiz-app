@@ -10,14 +10,13 @@ export default function WelcomeScreen() {
   return (
     <LinearGradient colors={["#8B5CF6", "#3B82F6", "#EC4899"]} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Background Elements */}
+        
         <View style={styles.backgroundElements}>
           <View style={[styles.floatingElement, styles.element1]} />
           <View style={[styles.floatingElement, styles.element2]} />
           <View style={[styles.floatingElement, styles.element3]} />
         </View>
 
-        {/* Logo and Title */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
             <Text style={styles.logoEmoji}>🧠</Text>
@@ -26,7 +25,6 @@ export default function WelcomeScreen() {
           <Text style={styles.subtitle}>Challenge Your Mind in Real-Time</Text>
         </View>
 
-        {/* Features */}
         <View style={styles.featuresContainer}>
           <View style={styles.featureCard}>
             <Text style={styles.featureEmoji}>⚡</Text>
@@ -47,7 +45,6 @@ export default function WelcomeScreen() {
           </View>
         </View>
 
-        {/* Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
             <Text style={styles.statNumber}>1M+</Text>
@@ -65,7 +62,6 @@ export default function WelcomeScreen() {
           </View>
         </View>
 
-        {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={() => navigation.navigate("Auth")}>
             <LinearGradient colors={["#10B981", "#3B82F6"]} style={styles.buttonGradient}>

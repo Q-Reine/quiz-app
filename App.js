@@ -1,5 +1,3 @@
-"use client"
-
 import { useEffect, useState } from "react"
 import { StatusBar } from "expo-status-bar"
 import { NavigationContainer } from "@react-navigation/native"
@@ -14,7 +12,7 @@ export default function App() {
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
-    // Simulate app initialization
+    
     const timer = setTimeout(() => {
       setIsReady(true)
     }, 2000)

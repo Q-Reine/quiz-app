@@ -1,5 +1,3 @@
-"use client"
-
 import { useState } from "react"
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
@@ -49,7 +47,7 @@ export default function DashboardScreen() {
   return (
     <LinearGradient colors={["#1F2937", "#8B5CF6", "#1F2937"]} style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header */}
+        
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={styles.logoContainer}>
@@ -77,13 +75,13 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* Welcome Section */}
+        
         <View style={styles.welcomeSection}>
           <Text style={styles.welcomeTitle}>Welcome back, {user.username}! 👋</Text>
           <Text style={styles.welcomeSubtitle}>Ready for your next quiz battle? Choose your game mode below.</Text>
         </View>
 
-        {/* Stats Cards */}
+        
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <View style={styles.statIcon}>
@@ -120,9 +118,9 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* Game Options */}
+        
         <View style={styles.gameOptionsContainer}>
-          {/* Quick Match */}
+          
           <View style={styles.gameCard}>
             <View style={styles.gameCardHeader}>
               <Text style={styles.gameCardTitle}>⚡ Quick Match</Text>
@@ -154,7 +152,6 @@ export default function DashboardScreen() {
             </View>
           </View>
 
-          {/* Private Room */}
           <View style={styles.gameCard}>
             <View style={styles.gameCardHeader}>
               <Text style={styles.gameCardTitle}>👥 Private Room</Text>
@@ -197,7 +194,6 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* Recent Activity */}
         <View style={styles.activityCard}>
           <Text style={styles.activityTitle}>Recent Activity</Text>
           <Text style={styles.activitySubtitle}>Your latest quiz battles</Text>

@@ -1,5 +1,3 @@
-"use client"
-
 import { createContext, useContext, useEffect, useState } from "react"
 import { useSocket } from "./SocketContext"
 import { useAuth } from "./AuthContext"

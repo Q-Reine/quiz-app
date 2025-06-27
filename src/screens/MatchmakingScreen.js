@@ -1,5 +1,3 @@
-"use client"
-
 import { useEffect, useState } from "react"
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
@@ -36,31 +34,31 @@ export default function MatchmakingScreen() {
   return (
     <LinearGradient colors={["#1F2937", "#8B5CF6", "#1F2937"]} style={styles.container}>
       <View style={styles.content}>
-        {/* Animated Search Icon */}
+        
         <View style={styles.iconContainer}>
           <View style={styles.searchIcon}>
             <Text style={styles.searchEmoji}>🔍</Text>
           </View>
         </View>
 
-        {/* Status */}
+        
         <Text style={styles.title}>Finding Your Opponent</Text>
         <Text style={styles.subtitle}>Searching for a player with similar skill level...</Text>
 
-        {/* Search Time */}
+        
         <View style={styles.timeContainer}>
           <Text style={styles.timeText}>{formatTime(searchTime)}</Text>
           <Text style={styles.timeLabel}>Search time</Text>
         </View>
 
-        {/* Animated Dots */}
+        
         <View style={styles.dotsContainer}>
           <View style={[styles.dot, styles.dot1]} />
           <View style={[styles.dot, styles.dot2]} />
           <View style={[styles.dot, styles.dot3]} />
         </View>
 
-        {/* Tips */}
+        
         <View style={styles.tipContainer}>
           <Text style={styles.tipText}>
             💡 <Text style={styles.tipBold}>Tip:</Text> The better your ELO rating, the more challenging opponents
@@ -68,7 +66,7 @@ export default function MatchmakingScreen() {
           </Text>
         </View>
 
-        {/* Cancel Button */}
+        
         <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.navigate("Dashboard")}>
           <Text style={styles.cancelButtonText}>✕ Cancel Search</Text>
         </TouchableOpacity>

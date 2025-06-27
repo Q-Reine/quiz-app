@@ -9,7 +9,7 @@ export default function SplashScreen({ onComplete }) {
   const scaleAnim = new Animated.Value(0.8)
 
   useEffect(() => {
-    // Start animations
+    
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -24,7 +24,6 @@ export default function SplashScreen({ onComplete }) {
       }),
     ]).start()
 
-    // Auto-complete after 4 seconds
     const timer = setTimeout(() => {
       onComplete()
     }, 4000)
@@ -34,7 +33,7 @@ export default function SplashScreen({ onComplete }) {
 
   return (
     <LinearGradient colors={["#f8fafc", "#e2e8f0", "#cbd5e1"]} style={styles.container}>
-      {/* Background elements */}
+      
       <View style={styles.backgroundShapes}>
         <LinearGradient colors={["#8b5cf6", "#a78bfa"]} style={[styles.shape, styles.shape1]} />
         <LinearGradient colors={["#ec4899", "#f472b6"]} style={[styles.shape, styles.shape2]} />
@@ -51,7 +50,7 @@ export default function SplashScreen({ onComplete }) {
           },
         ]}
       >
-        {/* Main logo container */}
+        
         <View style={styles.logoContainer}>
           <LinearGradient colors={["#8b5cf6", "#a78bfa"]} style={styles.logoGradient}>
             <Animatable.View animation="pulse" iterationCount="infinite" duration={2000}>
@@ -60,17 +59,17 @@ export default function SplashScreen({ onComplete }) {
           </LinearGradient>
         </View>
 
-        {/* Title */}
+        
         <Animatable.Text animation="fadeInUp" delay={500} style={styles.title}>
           QuizBattle
         </Animatable.Text>
 
-        {/* Subtitle */}
+        
         <Animatable.Text animation="fadeInUp" delay={700} style={styles.subtitle}>
           Challenge your mind
         </Animatable.Text>
 
-        {/* Loading indicator */}
+        
         <Animatable.View animation="fadeInUp" delay={900} style={styles.loadingContainer}>
           <View style={styles.loadingDots}>
             <Animatable.View
