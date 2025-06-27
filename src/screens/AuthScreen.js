@@ -1,273 +1,177 @@
+"use client"
+
 import { useState } from "react"
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
+  TouchableOpacity,
+  TextInput,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
-import Icon from "react-native-vector-icons/MaterialIcons"
-import * as Animatable from "react-native-animatable"
+import { useNavigation } from "@react-navigation/native"
 import { useAuth } from "../contexts/AuthContext"
 
-export default function AuthScreen({ navigation }) {
+export default function AuthScreen() {
+  const navigation = useNavigation()
+  const { login, register, loading } = useAuth()
   const [isLogin, setIsLogin] = useState(true)
-  const [email, setEmail] = useState("test@example.com")
-  const [password, setPassword] = useState("password")
-  const [username, setUsername] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [loading, setLoading] = useState(false)
-  const { login, register, googleSignIn } = useAuth()
+  const [loginData, setLoginData] = useState({ email: "test@example.com", password: "password" })
+  const [registerData, setRegisterData] = useState({ username: "", email: "", password: "", confirmPassword: "" })
 
-  const handleAuth = async () => {
-    if (isLogin) {
-      if (!email || !password) {
-        Alert.alert("Error", "Please enter both email and password")
-        return
-      }
-
-      setLoading(true)
-      const success = await login(email, password)
-      setLoading(false)
-
-      if (!success) {
-        Alert.alert("Login Failed", "Please check your credentials and try again")
-      }
-    } else {
-        if (!username || !email || !password || !confirmPassword) {
-        Alert.alert("Error", "Please fill in all fields")
-        return
-      }
-
-      if (password !== confirmPassword) {
-        Alert.alert("Error", "Passwords do not match")
-        return
-      }
-
-      if (password.length < 6) {
-        Alert.alert("Error", "Password must be at least 6 characters")
-        return
-      }
-
-      setLoading(true)
-      const success = await register(username, email, password)
-      setLoading(false)
-
-      if (!success) {
-        Alert.alert("Registration Failed", "Please try again")
-      }
+  const handleLogin = async () => {
+    const success = await login(loginData.email, loginData.password)
+    if (success) {
+      navigation.navigate("Dashboard")
     }
   }
 
-  const handleGoogleSignIn = async () => {
-    setLoading(true)
-    await googleSignIn()
-    setLoading(false)
-  }
-
-  const toggleMode = () => {
-    setIsLogin(!isLogin)
-    if (isLogin) {
-      setEmail("")
-      setPassword("")
-    } else {
-      setEmail("test@example.com")
-      setPassword("password")
-      setUsername("")
-      setConfirmPassword("")
+  const handleRegister = async () => {
+    if (registerData.password !== registerData.confirmPassword) {
+      alert("Passwords don't match!")
+      return
+    }
+    const success = await register(registerData.username, registerData.email, registerData.password)
+    if (success) {
+      navigation.navigate("Dashboard")
     }
   }
 
   return (
-    <LinearGradient colors={["#f8fafc", "#e2e8f0", "#cbd5e1"]} style={styles.container}>
-      <View style={styles.backgroundShapes}>
-        <LinearGradient colors={["#8b5cf6", "#a78bfa"]} style={[styles.shape, styles.shape1]} />
-        <LinearGradient colors={["#ec4899", "#f472b6"]} style={[styles.shape, styles.shape2]} />
-        <LinearGradient colors={["#06b6d4", "#67e8f9"]} style={[styles.shape, styles.shape3]} />
-      </View>
-
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardView}>
+    <LinearGradient colors={["#8B5CF6", "#3B82F6", "#EC4899"]} style={styles.container}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoid}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          
-          <Animatable.View animation="fadeInDown" delay={200} style={styles.header}>
+          {/* Background Elements */}
+          <View style={styles.backgroundElements}>
+            <View style={[styles.floatingElement, styles.element1]} />
+            <View style={[styles.floatingElement, styles.element2]} />
+          </View>
+
+          {/* Logo */}
+          <View style={styles.header}>
             <View style={styles.logoContainer}>
-              <LinearGradient
-                colors={isLogin ? ["#8b5cf6", "#a78bfa"] : ["#ec4899", "#f472b6"]}
-                style={styles.logoGradient}
-              >
-                <Icon name={isLogin ? "psychology" : "person-add"} size={28} color="#FFFFFF" />
-              </LinearGradient>
+              <Text style={styles.logoEmoji}>🧠</Text>
             </View>
-            <Text style={styles.title}>{isLogin ? "Welcome back" : "Create account"}</Text>
-            <Text style={styles.subtitle}>{isLogin ? "Sign in to your account" : "Join QuizBattle today"}</Text>
-          </Animatable.View>
+            <Text style={styles.title}>Welcome to QuizBattle</Text>
+            <Text style={styles.subtitle}>Sign in to start your quiz journey</Text>
+          </View>
 
-          
-          <Animatable.View animation="fadeInUp" delay={400} style={styles.authCard}>
-            <View style={styles.toggleContainer}>
-              <TouchableOpacity
-                style={[styles.toggleButton, isLogin && styles.activeToggle]}
-                onPress={() => !isLogin && toggleMode()}
-              >
-                <Text style={[styles.toggleText, isLogin && styles.activeToggleText]}>Sign In</Text>
+          {/* Auth Form */}
+          <View style={styles.formContainer}>
+            {/* Tab Selector */}
+            <View style={styles.tabContainer}>
+              <TouchableOpacity style={[styles.tab, isLogin && styles.activeTab]} onPress={() => setIsLogin(true)}>
+                <Text style={[styles.tabText, isLogin && styles.activeTabText]}>Sign In</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.toggleButton, !isLogin && styles.activeToggle]}
-                onPress={() => isLogin && toggleMode()}
-              >
-                <Text style={[styles.toggleText, !isLogin && styles.activeToggleText]}>Sign Up</Text>
+              <TouchableOpacity style={[styles.tab, !isLogin && styles.activeTab]} onPress={() => setIsLogin(false)}>
+                <Text style={[styles.tabText, !isLogin && styles.activeTabText]}>Sign Up</Text>
               </TouchableOpacity>
             </View>
-            
-            {/* Login button*/}
-            <TouchableOpacity
-              style={[styles.socialButton, { opacity: 0.6 }]}
-              onPress={handleGoogleSignIn}
-              disabled={true}
-            >
-              <Icon name="account-circle" size={20} color="#4285F4" />
-              <Text style={styles.socialButtonText}>Continue with Google</Text>
-              <Text style={styles.comingSoon}>(Coming Soon)</Text>
-            </TouchableOpacity>
 
-            
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-           
-            <Animatable.View key={isLogin ? "login" : "register"} animation="fadeIn" duration={300}>
-              {/* Username for register */}
-              {!isLogin && (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Username</Text>
-                  <View style={styles.inputContainer}>
-                    <Icon name="person" size={20} color="#94a3b8" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      value={username}
-                      onChangeText={setUsername}
-                      placeholder="Choose a username"
-                      placeholderTextColor="#94a3b8"
-                      autoCapitalize="none"
-                      editable={!loading}
-                    />
-                  </View>
-                </View>
-              )}
-
-              {/* Email */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Email</Text>
+            {/* Login Form */}
+            {isLogin ? (
+              <View style={styles.form}>
                 <View style={styles.inputContainer}>
-                  <Icon name="email" size={20} color="#94a3b8" style={styles.inputIcon} />
+                  <Text style={styles.label}>Email</Text>
                   <TextInput
                     style={styles.input}
-                    value={email}
-                    onChangeText={setEmail}
                     placeholder="Enter your email"
-                    placeholderTextColor="#94a3b8"
+                    placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                    value={loginData.email}
+                    onChangeText={(text) => setLoginData((prev) => ({ ...prev, email: text }))}
                     keyboardType="email-address"
                     autoCapitalize="none"
-                    editable={!loading}
                   />
                 </View>
-              </View>
 
-              {/* Password */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Password</Text>
                 <View style={styles.inputContainer}>
-                  <Icon name="lock" size={20} color="#94a3b8" style={styles.inputIcon} />
+                  <Text style={styles.label}>Password</Text>
                   <TextInput
                     style={styles.input}
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder={isLogin ? "Enter your password" : "Create a password"}
-                    placeholderTextColor="#94a3b8"
+                    placeholder="Enter your password"
+                    placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                    value={loginData.password}
+                    onChangeText={(text) => setLoginData((prev) => ({ ...prev, password: text }))}
                     secureTextEntry
-                    editable={!loading}
                   />
                 </View>
-              </View>
 
-              {/* Confirm Password */}
-              {!isLogin && (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Confirm Password</Text>
-                  <View style={styles.inputContainer}>
-                    <Icon name="lock" size={20} color="#94a3b8" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      value={confirmPassword}
-                      onChangeText={setConfirmPassword}
-                      placeholder="Confirm your password"
-                      placeholderTextColor="#94a3b8"
-                      secureTextEntry
-                      editable={!loading}
-                    />
-                  </View>
+                <TouchableOpacity style={styles.submitButton} onPress={handleLogin} disabled={loading}>
+                  <LinearGradient colors={["#10B981", "#3B82F6"]} style={styles.buttonGradient}>
+                    <Text style={styles.submitButtonText}>{loading ? "Signing In..." : "Sign In"}</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <Text style={styles.demoText}>Demo: test@example.com / password</Text>
+              </View>
+            ) : (
+              /* Register Form */
+              <View style={styles.form}>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Username</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Choose a username"
+                    placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                    value={registerData.username}
+                    onChangeText={(text) => setRegisterData((prev) => ({ ...prev, username: text }))}
+                    autoCapitalize="none"
+                  />
                 </View>
-              )}
-            </Animatable.View>
 
-            {/* Forgot Password */}
-            {isLogin && (
-              <TouchableOpacity style={styles.forgotPassword}>
-                <Text style={styles.forgotPasswordText}>Forgot password?</Text>
-              </TouchableOpacity>
-            )}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Email</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your email"
+                    placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                    value={registerData.email}
+                    onChangeText={(text) => setRegisterData((prev) => ({ ...prev, email: text }))}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                </View>
 
-            {/* Terms */}
-            {!isLogin && (
-              <View style={styles.termsContainer}>
-                <Text style={styles.termsText}>
-                  By creating an account, you agree to our <Text style={styles.termsLink}>Terms of Service</Text> and{" "}
-                  <Text style={styles.termsLink}>Privacy Policy</Text>
-                </Text>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Password</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Create a password"
+                    placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                    value={registerData.password}
+                    onChangeText={(text) => setRegisterData((prev) => ({ ...prev, password: text }))}
+                    secureTextEntry
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Confirm Password</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Confirm your password"
+                    placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                    value={registerData.confirmPassword}
+                    onChangeText={(text) => setRegisterData((prev) => ({ ...prev, confirmPassword: text }))}
+                    secureTextEntry
+                  />
+                </View>
+
+                <TouchableOpacity style={styles.submitButton} onPress={handleRegister} disabled={loading}>
+                  <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.buttonGradient}>
+                    <Text style={styles.submitButtonText}>{loading ? "Creating Account..." : "Create Account"}</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
               </View>
             )}
+          </View>
 
-            {/* Auth Button */}
-            <TouchableOpacity
-              style={[styles.authButton, loading && styles.disabledButton]}
-              onPress={handleAuth}
-              disabled={loading}
-            >
-              <LinearGradient
-                colors={isLogin ? ["#8b5cf6", "#a78bfa"] : ["#ec4899", "#f472b6"]}
-                style={styles.authButtonGradient}
-              >
-                <Text style={styles.authButtonText}>
-                  {loading
-                    ? isLogin
-                      ? "Signing in..."
-                      : "Creating account..."
-                    : isLogin
-                      ? "Sign in"
-                      : "Create account"}
-                </Text>
-                {!loading && <Icon name="arrow-forward" size={20} color="#FFFFFF" style={styles.buttonIcon} />}
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {/* Alternative Action */}
-            <View style={styles.alternativeContainer}>
-              <Text style={styles.alternativeText}>
-                {isLogin ? "Don't have an account? " : "Already have an account? "}
-              </Text>
-              <TouchableOpacity onPress={toggleMode}>
-                <Text style={styles.alternativeLink}>{isLogin ? "Sign up" : "Sign in"}</Text>
-              </TouchableOpacity>
-            </View>
-          </Animatable.View>
+          {/* Back Button */}
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("Welcome")}>
+            <Text style={styles.backButtonText}>← Back to Welcome</Text>
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>
@@ -278,257 +182,145 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  backgroundShapes: {
-    position: "absolute",
-    width: "100%",
-    height: "100%",
-  },
-  shape: {
-    position: "absolute",
-    borderRadius: 100,
-    opacity: 0.1,
-  },
-  shape1: {
-    width: 200,
-    height: 200,
-    top: "10%",
-    right: "-10%",
-  },
-  shape2: {
-    width: 150,
-    height: 150,
-    top: "60%",
-    left: "-15%",
-  },
-  shape3: {
-    width: 120,
-    height: 120,
-    bottom: "15%",
-    right: "10%",
-  },
-  keyboardView: {
+  keyboardAvoid: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "center",
-    padding: 24,
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 40,
+  },
+  backgroundElements: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  floatingElement: {
+    position: "absolute",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 50,
+  },
+  element1: {
+    width: 80,
+    height: 80,
+    top: 100,
+    left: 50,
+  },
+  element2: {
+    width: 100,
+    height: 100,
+    bottom: 200,
+    right: 50,
   },
   header: {
     alignItems: "center",
     marginBottom: 40,
   },
   logoContainer: {
-    marginBottom: 24,
-  },
-  logoGradient: {
     width: 64,
     height: 64,
     borderRadius: 32,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#8b5cf6",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    marginBottom: 16,
+  },
+  logoEmoji: {
+    fontSize: 32,
   },
   title: {
-    fontSize: 32,
-    fontWeight: "700",
-    color: "#1e293b",
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "white",
     marginBottom: 8,
     textAlign: "center",
   },
   subtitle: {
     fontSize: 16,
-    color: "#64748b",
+    color: "rgba(255, 255, 255, 0.8)",
     textAlign: "center",
   },
-  authCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 32,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.1,
-    shadowRadius: 40,
-    elevation: 20,
-  },
-  toggleContainer: {
-    flexDirection: "row",
-    backgroundColor: "#f1f5f9",
+  formContainer: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 16,
-    padding: 4,
-    marginBottom: 24,
+    padding: 20,
+    marginBottom: 20,
   },
-  toggleButton: {
+  tabContainer: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  tab: {
     flex: 1,
     paddingVertical: 12,
     alignItems: "center",
-    borderRadius: 12,
+    borderRadius: 8,
   },
-  activeToggle: {
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+  activeTab: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
-  toggleText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#64748b",
-  },
-  activeToggleText: {
-    color: "#1e293b",
-  },
-  demoInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f1f5f9",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 24,
-    borderLeftWidth: 3,
-    borderLeftColor: "#8b5cf6",
-  },
-  demoText: {
-    fontSize: 12,
-    color: "#64748b",
-    marginLeft: 8,
-    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
-  },
-  socialButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#f8fafc",
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    marginBottom: 24,
-  },
-  socialButtonText: {
+  tabText: {
+    color: "rgba(255, 255, 255, 0.7)",
     fontSize: 16,
-    color: "#334155",
-    fontWeight: "600",
-    marginLeft: 12,
-    flex: 1,
-    textAlign: "center",
-  },
-  comingSoon: {
-    fontSize: 12,
-    color: "#94a3b8",
-    fontStyle: "italic",
-  },
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#e2e8f0",
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    fontSize: 14,
-    color: "#94a3b8",
     fontWeight: "500",
   },
-  inputGroup: {
-    marginBottom: 20,
+  activeTabText: {
+    color: "white",
   },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: 8,
+  form: {
+    gap: 16,
   },
   inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f8fafc",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    paddingHorizontal: 16,
+    gap: 8,
   },
-  inputIcon: {
-    marginRight: 12,
+  label: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "500",
   },
   input: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: "white",
+    fontSize: 16,
+  },
+  submitButton: {
+    height: 48,
+    borderRadius: 24,
+    overflow: "hidden",
+    marginTop: 8,
+  },
+  buttonGradient: {
     flex: 1,
-    paddingVertical: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  submitButtonText: {
+    color: "white",
     fontSize: 16,
-    color: "#1e293b",
-  },
-  forgotPassword: {
-    alignSelf: "flex-end",
-    marginBottom: 24,
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    color: "#8b5cf6",
     fontWeight: "600",
   },
-  termsContainer: {
-    marginBottom: 24,
-  },
-  termsText: {
+  demoText: {
+    color: "rgba(255, 255, 255, 0.6)",
     fontSize: 12,
-    color: "#64748b",
     textAlign: "center",
-    lineHeight: 18,
+    marginTop: 8,
   },
-  termsLink: {
-    color: "#ec4899",
-    fontWeight: "600",
-  },
-  authButton: {
-    borderRadius: 16,
-    marginBottom: 24,
-    shadowColor: "#8b5cf6",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  authButtonGradient: {
-    flexDirection: "row",
+  backButton: {
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 18,
-    borderRadius: 16,
+    paddingVertical: 12,
   },
-  authButtonText: {
+  backButtonText: {
+    color: "rgba(255, 255, 255, 0.8)",
     fontSize: 16,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  buttonIcon: {
-    marginLeft: 8,
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  alternativeContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  alternativeText: {
-    fontSize: 14,
-    color: "#64748b",
-  },
-  alternativeLink: {
-    fontSize: 14,
-    color: "#8b5cf6",
-    fontWeight: "600",
   },
 })

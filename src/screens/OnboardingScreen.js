@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useRef, useEffect } from "react"
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions, SafeAreaView, StatusBar } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
@@ -65,7 +67,7 @@ export default function OnboardingScreen({ navigation }) {
   const scaleAnim = useRef(new Animated.Value(1)).current
   const rotateAnim = useRef(new Animated.Value(0)).current
 
-  // Floating animation
+  // Floating elements animation
   const [floatingElements] = useState(
     Array.from({ length: 20 }, (_, i) => ({
       id: i,
@@ -147,8 +149,8 @@ export default function OnboardingScreen({ navigation }) {
     if (currentIndex < onboardingData.length - 1) {
       animateTransition(() => setCurrentIndex(currentIndex + 1))
     } else {
-      // Navigate to next slide
-      navigation.replace("AuthFlow")
+      // Navigate to QuickPlay instead of AuthFlow
+      navigation.navigate("QuickPlay")
     }
   }
 
@@ -189,7 +191,8 @@ export default function OnboardingScreen({ navigation }) {
   }
 
   const skipOnboarding = () => {
-    navigation.replace("AuthFlow")
+    // Navigate to QuickPlay instead of AuthFlow
+    navigation.navigate("QuickPlay")
   }
 
   const currentSlide = onboardingData[currentIndex]
@@ -231,13 +234,14 @@ export default function OnboardingScreen({ navigation }) {
       </Animated.View>
 
       <SafeAreaView style={styles.safeArea}>
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.skipButton} onPress={skipOnboarding}>
             <Text style={styles.skipText}>Skip</Text>
           </TouchableOpacity>
         </View>
 
-        
+        {/* Content */}
         <Animated.View
           style={[
             styles.content,
@@ -247,7 +251,7 @@ export default function OnboardingScreen({ navigation }) {
             },
           ]}
         >
-          
+          {/* Illustration */}
           <Animatable.View animation="bounceIn" duration={1000} style={styles.illustrationContainer}>
             <View style={styles.illustrationBackground}>
               <LinearGradient
@@ -263,14 +267,14 @@ export default function OnboardingScreen({ navigation }) {
             <View style={[styles.illustrationGlow, { backgroundColor: `${currentSlide.accentColor}30` }]} />
           </Animatable.View>
 
-          
+          {/* Text Content */}
           <Animatable.View animation="fadeInUp" delay={300} style={styles.textContainer}>
             <Text style={styles.title}>{currentSlide.title}</Text>
             <Text style={styles.subtitle}>{currentSlide.subtitle}</Text>
             <Text style={styles.description}>{currentSlide.description}</Text>
           </Animatable.View>
 
-         
+          {/* Features List */}
           <Animatable.View animation="fadeInUp" delay={600} style={styles.featuresContainer}>
             {currentSlide.features.map((feature, index) => (
               <Animatable.View key={index} animation="fadeInLeft" delay={800 + index * 200} style={styles.featureItem}>

@@ -1,61 +1,43 @@
-import { useEffect, useState } from "react"
-import { NavigationContainer } from "@react-navigation/native"
-import { createStackNavigator } from "@react-navigation/stack"
-import { StatusBar, Platform } from "react-native"
-import * as SplashScreen from "expo-splash-screen"
-import Toast from "react-native-toast-message"
+"use client"
 
+import { useEffect, useState } from "react"
+import { StatusBar } from "expo-status-bar"
+import { NavigationContainer } from "@react-navigation/native"
+import { ToastProvider } from "./src/contexts/ToastContext"
 import { AuthProvider } from "./src/contexts/AuthContext"
 import { GameProvider } from "./src/contexts/GameContext"
-
-import SplashScreenComponent from "./src/screens/SplashScreen"
+import { SocketProvider } from "./src/contexts/SocketContext"
 import MainNavigator from "./src/navigation/index"
-
-const Stack = createStackNavigator()
+import LoadingScreen from "./src/components/LoadingScreen"
 
 export default function App() {
   const [isReady, setIsReady] = useState(false)
-  const [showSplash, setShowSplash] = useState(true)
 
   useEffect(() => {
-    async function prepare() {
-      try {
-        await SplashScreen.preventAutoHideAsync()
+    // Simulate app initialization
+    const timer = setTimeout(() => {
+      setIsReady(true)
+    }, 2000)
 
-        if (Platform.OS === "android") {
-          StatusBar.setBackgroundColor("#667eea", true)
-          StatusBar.setBarStyle("light-content", true)
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, 2000))
-      } catch (e) {
-        console.warn(e)
-      } finally {
-        setIsReady(true)
-        await SplashScreen.hideAsync()
-      }
-    }
-
-    prepare()
+    return () => clearTimeout(timer)
   }, [])
 
   if (!isReady) {
-    return null
-  }
-
-  if (showSplash) {
-    return <SplashScreenComponent onComplete={() => setShowSplash(false)} />
+    return <LoadingScreen />
   }
 
   return (
-    <AuthProvider>
-      <GameProvider>
-        <NavigationContainer>
-          <StatusBar barStyle="light-content" backgroundColor="#667eea" translucent={false} />
-          <MainNavigator />
-          <Toast />
-        </NavigationContainer>
-      </GameProvider>
-    </AuthProvider>
+    <NavigationContainer>
+      <ToastProvider>
+        <AuthProvider>
+          <SocketProvider>
+            <GameProvider>
+              <MainNavigator />
+              <StatusBar style="light" />
+            </GameProvider>
+          </SocketProvider>
+        </AuthProvider>
+      </ToastProvider>
+    </NavigationContainer>
   )
 }

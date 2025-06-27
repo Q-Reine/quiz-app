@@ -1,508 +1,256 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  SafeAreaView,
-  Alert,
-  Modal,
-  TextInput,
-  Switch,
-} from "react-native"
+import { useState } from "react"
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Switch } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
-import Icon from "react-native-vector-icons/MaterialIcons"
-import * as Animatable from "react-native-animatable"
-
+import { useNavigation } from "@react-navigation/native"
 import { useAuth } from "../contexts/AuthContext"
-import { gameService } from "../services/gameService"
-import AvatarPicker from "../components/AvatarPicker"
 
+export default function ProfileScreen() {
+  const navigation = useNavigation()
+  const { user, updateProfile, logout } = useAuth()
+  const [isEditing, setIsEditing] = useState(false)
+  const [editData, setEditData] = useState({
+    username: user?.username || "",
+    email: user?.email || "",
+  })
+  const [settings, setSettings] = useState({
+    soundEnabled: true,
+    notificationsEnabled: true,
+    vibrationEnabled: true,
+  })
 
-export default function ProfileScreen({ navigation }) {
-  const { user, logout, updateProfile } = useAuth()
-  const [stats, setStats] = useState(null)
-  const [achievements, setAchievements] = useState([])
-  const [recentGames, setRecentGames] = useState([])
-  const [loading, setLoading] = useState(true)
-
-  const [editModalVisible, setEditModalVisible] = useState(false)
-  const [settingsModalVisible, setSettingsModalVisible] = useState(false)
-  const [avatarModalVisible, setAvatarModalVisible] = useState(false)
-
-  // Edit user form states
-  const [editUsername, setEditUsername] = useState(user?.username || "")
-  const [editEmail, setEditEmail] = useState(user?.email || "")
-
-  // Settings states
-  const [soundEnabled, setSoundEnabled] = useState(true)
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
-  const [vibrationEnabled, setVibrationEnabled] = useState(true)
-
-  useEffect(() => {
-    fetchProfileData()
-  }, [])
-
-  const fetchProfileData = async () => {
-    try {
-      setLoading(true)
-
-      // Fetch user stats
-      const statsResponse = await gameService.getUserStats()
-      if (statsResponse.success) {
-        setStats(statsResponse.stats)
-      }
-
-      // Fetch achievements
-      const achievementsResponse = await gameService.getUserAchievements()
-      if (achievementsResponse.success) {
-        setAchievements(achievementsResponse.achievements)
-      }
-
-      // Fetch recent games
-      const gamesResponse = await gameService.getRecentGames()
-      if (gamesResponse.success) {
-        setRecentGames(gamesResponse.games)
-      }
-    } catch (error) {
-      console.error("Failed to fetch profile data:", error)
-    } finally {
-      setLoading(false)
-    }
+  if (!user) {
+    navigation.navigate("Dashboard")
+    return null
   }
 
-  const handleUpdateProfile = async () => {
-    try {
-      const success = await updateProfile({
-        username: editUsername,
-        email: editEmail,
-      })
-
-      if (success) {
-        setEditModalVisible(false)
-        Alert.alert("Success", "Profile updated successfully!")
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to update profile")
+  const handleSaveProfile = async () => {
+    const success = await updateProfile(editData)
+    if (success) {
+      setIsEditing(false)
     }
   }
 
   const handleLogout = () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Logout", onPress: logout },
-    ])
+    logout()
+    navigation.navigate("Welcome")
   }
 
   const getRankInfo = (eloRating) => {
-    if (eloRating >= 2000) return { rank: "Grandmaster", color: "#9C27B0", icon: "military-tech" }
-    if (eloRating >= 1800) return { rank: "Master", color: "#FF9800", icon: "star" }
-    if (eloRating >= 1600) return { rank: "Expert", color: "#2196F3", icon: "trending-up" }
-    if (eloRating >= 1400) return { rank: "Advanced", color: "#4CAF50", icon: "thumb-up" }
-    if (eloRating >= 1200) return { rank: "Intermediate", color: "#FF5722", icon: "school" }
-    return { rank: "Beginner", color: "#9E9E9E", icon: "emoji-events" }
+    if (eloRating >= 2000) return { rank: "Grandmaster", color: "#8B5CF6", bgColor: "rgba(139, 92, 246, 0.2)" }
+    if (eloRating >= 1800) return { rank: "Master", color: "#F59E0B", bgColor: "rgba(245, 158, 11, 0.2)" }
+    if (eloRating >= 1600) return { rank: "Expert", color: "#3B82F6", bgColor: "rgba(59, 130, 246, 0.2)" }
+    if (eloRating >= 1400) return { rank: "Advanced", color: "#10B981", bgColor: "rgba(16, 185, 129, 0.2)" }
+    if (eloRating >= 1200) return { rank: "Intermediate", color: "#F97316", bgColor: "rgba(249, 115, 22, 0.2)" }
+    return { rank: "Beginner", color: "#6B7280", bgColor: "rgba(107, 114, 128, 0.2)" }
   }
 
-  const rankInfo = getRankInfo(user?.elo_rating || 1200)
-
-  if (loading) {
-    return (
-      <LinearGradient colors={["#FFF5F0", "#FFE5D9", "#FFCAB0"]} style={styles.container}>
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.loadingContainer}>
-            <Animatable.View animation="pulse" iterationCount="infinite">
-              <Icon name="person" size={60} color="#FF6B35" />
-            </Animatable.View>
-            <Text style={styles.loadingText}>Loading profile...</Text>
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
-    )
-  }
+  const rankInfo = getRankInfo(user.eloRating)
+  const winRate = user.totalGames > 0 ? Math.round((user.wins / user.totalGames) * 100) : 0
 
   return (
-    <LinearGradient colors={["#FFF5F0", "#FFE5D9", "#FFCAB0"]} style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
+    <LinearGradient colors={["#1F2937", "#8B5CF6", "#1F2937"]} style={styles.container}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Icon name="arrow-back" size={24} color="#FF6B35" />
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("Dashboard")}>
+            <Text style={styles.backButtonText}>← Back to Dashboard</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Profile</Text>
-          <TouchableOpacity onPress={() => setSettingsModalVisible(true)} style={styles.settingsButton}>
-            <Icon name="settings" size={24} color="#FF6B35" />
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutButtonText}>Logout</Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <Animatable.View animation="fadeInDown" style={styles.profileHeader}>
-            <LinearGradient colors={["#FF6B35", "#FF4500"]} style={styles.profileCard}>
-              <TouchableOpacity onPress={() => setAvatarModalVisible(true)} style={styles.avatarContainer}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{user?.username?.substring(0, 2).toUpperCase()}</Text>
-                </View>
-                <View style={styles.editAvatarBadge}>
-                  <Icon name="edit" size={12} color="#FFFFFF" />
-                </View>
-              </TouchableOpacity>
-
-              <View style={styles.profileInfo}>
-                <Text style={styles.username}>{user?.username}</Text>
-                <Text style={styles.email}>{user?.email}</Text>
-
-                <View style={styles.rankContainer}>
-                  <Icon name={rankInfo.icon} size={16} color={rankInfo.color} />
-                  <Text style={[styles.rankText, { color: rankInfo.color }]}>{rankInfo.rank}</Text>
-                </View>
-
-                <TouchableOpacity onPress={() => setEditModalVisible(true)} style={styles.editButton}>
-                  <Icon name="edit" size={16} color="#FF6B35" />
-                  <Text style={styles.editButtonText}>Edit Profile</Text>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </Animatable.View>
-
-          
-          <Animatable.View animation="fadeInUp" delay={200} style={styles.statsSection}>
-            <Text style={styles.sectionTitle}>Statistics</Text>
-            <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
-                <LinearGradient colors={["#4CAF50", "#2E7D32"]} style={styles.statGradient}>
-                  <Icon name="emoji-events" size={24} color="#FFFFFF" />
-                  <Text style={styles.statNumber}>{user?.wins || 0}</Text>
-                  <Text style={styles.statLabel}>Wins</Text>
-                </LinearGradient>
-              </View>
-
-              <View style={styles.statCard}>
-                <LinearGradient colors={["#F44336", "#C62828"]} style={styles.statGradient}>
-                  <Icon name="close" size={24} color="#FFFFFF" />
-                  <Text style={styles.statNumber}>{user?.losses || 0}</Text>
-                  <Text style={styles.statLabel}>Losses</Text>
-                </LinearGradient>
-              </View>
-
-              <View style={styles.statCard}>
-                <LinearGradient colors={["#2196F3", "#1565C0"]} style={styles.statGradient}>
-                  <Icon name="games" size={24} color="#FFFFFF" />
-                  <Text style={styles.statNumber}>{user?.total_games || 0}</Text>
-                  <Text style={styles.statLabel}>Total Games</Text>
-                </LinearGradient>
-              </View>
-
-              <View style={styles.statCard}>
-                <LinearGradient colors={["#9C27B0", "#6A1B9A"]} style={styles.statGradient}>
-                  <Icon name="trending-up" size={24} color="#FFFFFF" />
-                  <Text style={styles.statNumber}>{user?.elo_rating || 1200}</Text>
-                  <Text style={styles.statLabel}>ELO Rating</Text>
-                </LinearGradient>
-              </View>
+        {/* Profile Header */}
+        <View style={styles.profileCard}>
+          <View style={styles.profileContent}>
+            <View style={styles.profileAvatar}>
+              <Text style={styles.profileAvatarText}>{user.avatar}</Text>
             </View>
-          </Animatable.View>
 
-          {/* Performance Chart */}
-          <Animatable.View animation="fadeInUp" delay={400} style={styles.performanceSection}>
-            <Text style={styles.sectionTitle}>Performance</Text>
-            <View style={styles.performanceCard}>
-              <View style={styles.performanceRow}>
-                <Text style={styles.performanceLabel}>Win Rate</Text>
-                <View style={styles.progressContainer}>
-                  <View style={styles.progressBar}>
-                    <LinearGradient
-                      colors={["#4CAF50", "#2E7D32"]}
-                      style={[
-                        styles.progressFill,
-                        { width: `${user?.total_games > 0 ? (user.wins / user.total_games) * 100 : 0}%` },
-                      ]}
+            <View style={styles.profileInfo}>
+              {isEditing ? (
+                <View style={styles.editForm}>
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Username</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={editData.username}
+                      onChangeText={(text) => setEditData((prev) => ({ ...prev, username: text }))}
+                      placeholder="Username"
+                      placeholderTextColor="rgba(255, 255, 255, 0.5)"
                     />
                   </View>
-                  <Text style={styles.progressText}>
-                    {user?.total_games > 0 ? Math.round((user.wins / user.total_games) * 100) : 0}%
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.performanceRow}>
-                <Text style={styles.performanceLabel}>Accuracy</Text>
-                <View style={styles.progressContainer}>
-                  <View style={styles.progressBar}>
-                    <LinearGradient colors={["#FF9800", "#F57C00"]} style={[styles.progressFill, { width: "78%" }]} />
-                  </View>
-                  <Text style={styles.progressText}>78%</Text>
-                </View>
-              </View>
-
-              <View style={styles.performanceRow}>
-                <Text style={styles.performanceLabel}>Speed</Text>
-                <View style={styles.progressContainer}>
-                  <View style={styles.progressBar}>
-                    <LinearGradient colors={["#2196F3", "#1565C0"]} style={[styles.progressFill, { width: "85%" }]} />
-                  </View>
-                  <Text style={styles.progressText}>85%</Text>
-                </View>
-              </View>
-            </View>
-          </Animatable.View>
-
-          {/* Achievements */}
-          <Animatable.View animation="fadeInUp" delay={600} style={styles.achievementsSection}>
-            <Text style={styles.sectionTitle}>Achievements</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.achievementsScroll}>
-              {mockAchievements.map((achievement, index) => (
-                <View key={index} style={styles.achievementCard}>
-                  <LinearGradient
-                    colors={achievement.unlocked ? ["#FFD700", "#FFA000"] : ["#E0E0E0", "#BDBDBD"]}
-                    style={styles.achievementIcon}
-                  >
-                    <Icon name={achievement.icon} size={24} color={achievement.unlocked ? "#FFFFFF" : "#757575"} />
-                  </LinearGradient>
-                  <Text style={styles.achievementTitle}>{achievement.title}</Text>
-                  <Text style={styles.achievementDescription}>{achievement.description}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          </Animatable.View>
-
-          {/* Recent Games */}
-          <Animatable.View animation="fadeInUp" delay={800} style={styles.recentGamesSection}>
-            <Text style={styles.sectionTitle}>Recent Games</Text>
-            {mockRecentGames.map((game, index) => (
-              <View key={index} style={styles.gameCard}>
-                <View style={styles.gameHeader}>
-                  <View style={styles.gameResult}>
-                    <Icon
-                      name={game.result === "win" ? "check-circle" : "cancel"}
-                      size={20}
-                      color={game.result === "win" ? "#4CAF50" : "#F44336"}
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Email</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={editData.email}
+                      onChangeText={(text) => setEditData((prev) => ({ ...prev, email: text }))}
+                      placeholder="Email"
+                      placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                      keyboardType="email-address"
                     />
-                    <Text style={[styles.gameResultText, { color: game.result === "win" ? "#4CAF50" : "#F44336" }]}>
-                      {game.result === "win" ? "Victory" : "Defeat"}
+                  </View>
+                  <View style={styles.editButtons}>
+                    <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile}>
+                      <Text style={styles.saveButtonText}>Save</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.cancelButton} onPress={() => setIsEditing(false)}>
+                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <>
+                  <Text style={styles.profileName}>{user.username}</Text>
+                  <Text style={styles.profileEmail}>{user.email}</Text>
+                  <View style={styles.profileBadges}>
+                    <View style={[styles.rankBadge, { backgroundColor: rankInfo.bgColor }]}>
+                      <Text style={[styles.rankBadgeText, { color: rankInfo.color }]}>🏆 {rankInfo.rank}</Text>
+                    </View>
+                    <View style={styles.eloBadge}>
+                      <Text style={styles.eloBadgeText}>{user.eloRating} ELO</Text>
+                    </View>
+                    <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(true)}>
+                      <Text style={styles.editButtonText}>✏️ Edit Profile</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </View>
+          </View>
+        </View>
+
+        {/* Statistics */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <View style={styles.statIcon}>
+              <Text style={styles.statEmoji}>🎯</Text>
+            </View>
+            <Text style={styles.statValue}>{user.totalGames}</Text>
+            <Text style={styles.statLabel}>Total Games</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={styles.statIcon}>
+              <Text style={styles.statEmoji}>🏆</Text>
+            </View>
+            <Text style={[styles.statValue, { color: "#10B981" }]}>{user.wins}</Text>
+            <Text style={styles.statLabel}>Wins</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={styles.statIcon}>
+              <Text style={styles.statEmoji}>❌</Text>
+            </View>
+            <Text style={[styles.statValue, { color: "#EF4444" }]}>{user.losses}</Text>
+            <Text style={styles.statLabel}>Losses</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={styles.statIcon}>
+              <Text style={styles.statEmoji}>📊</Text>
+            </View>
+            <Text style={[styles.statValue, { color: "#F59E0B" }]}>{winRate}%</Text>
+            <Text style={styles.statLabel}>Win Rate</Text>
+          </View>
+        </View>
+
+        {/* Recent Activity */}
+        <View style={styles.activityCard}>
+          <Text style={styles.activityTitle}>Recent Activity</Text>
+          <Text style={styles.activitySubtitle}>Your latest quiz battles</Text>
+
+          <View style={styles.activityList}>
+            {[
+              { opponent: "QuizMaster", result: "win", score: "8-6", category: "Science", time: "2 hours ago" },
+              { opponent: "BrainBox", result: "loss", score: "5-7", category: "History", time: "1 day ago" },
+              { opponent: "TriviaKing", result: "win", score: "9-4", category: "Sports", time: "2 days ago" },
+            ].map((game, index) => (
+              <View key={index} style={styles.activityItem}>
+                <View style={styles.activityLeft}>
+                  <View
+                    style={[styles.resultDot, { backgroundColor: game.result === "win" ? "#10B981" : "#EF4444" }]}
+                  />
+                  <View>
+                    <Text style={styles.activityOpponent}>vs {game.opponent}</Text>
+                    <Text style={styles.activityDetails}>
+                      {game.category} • {game.time}
                     </Text>
                   </View>
-                  <Text style={styles.gameDate}>{game.date}</Text>
                 </View>
-
-                <View style={styles.gameDetails}>
-                  <Text style={styles.gameOpponent}>vs {game.opponent}</Text>
-                  <Text style={styles.gameScore}>{game.score}</Text>
-                  <Text style={styles.gameCategory}>{game.category}</Text>
+                <View style={styles.activityRight}>
+                  <Text style={[styles.activityResult, { color: game.result === "win" ? "#10B981" : "#EF4444" }]}>
+                    {game.result === "win" ? "Victory" : "Defeat"}
+                  </Text>
+                  <Text style={styles.activityScore}>{game.score}</Text>
                 </View>
               </View>
             ))}
-          </Animatable.View>
-
-          {/* Logout Button */}
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <Icon name="logout" size={20} color="#F44336" />
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
-        </ScrollView>
-
-        {/* Edit Profile */}
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={editModalVisible}
-          onRequestClose={() => setEditModalVisible(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Edit Profile</Text>
-                <TouchableOpacity onPress={() => setEditModalVisible(false)}>
-                  <Icon name="close" size={24} color="#666" />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.modalBody}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Username</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    value={editUsername}
-                    onChangeText={setEditUsername}
-                    placeholder="Enter username"
-                  />
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Email</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    value={editEmail}
-                    onChangeText={setEditEmail}
-                    placeholder="Enter email"
-                    keyboardType="email-address"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.modalFooter}>
-                <TouchableOpacity onPress={() => setEditModalVisible(false)} style={styles.modalCancelButton}>
-                  <Text style={styles.modalCancelText}>Cancel</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={handleUpdateProfile} style={styles.modalSaveButton}>
-                  <LinearGradient colors={["#FF6B35", "#FF4500"]} style={styles.modalSaveGradient}>
-                    <Text style={styles.modalSaveText}>Save</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </View>
           </View>
-        </Modal>
+        </View>
 
         {/* Settings */}
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={settingsModalVisible}
-          onRequestClose={() => setSettingsModalVisible(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Settings</Text>
-                <TouchableOpacity onPress={() => setSettingsModalVisible(false)}>
-                  <Icon name="close" size={24} color="#666" />
-                </TouchableOpacity>
+        <View style={styles.settingsCard}>
+          <Text style={styles.settingsTitle}>Settings</Text>
+          <Text style={styles.settingsSubtitle}>Customize your game experience</Text>
+
+          <View style={styles.settingsList}>
+            <View style={styles.settingItem}>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingName}>Sound Effects</Text>
+                <Text style={styles.settingDescription}>Play sounds during gameplay</Text>
               </View>
+              <Switch
+                value={settings.soundEnabled}
+                onValueChange={(value) => setSettings((prev) => ({ ...prev, soundEnabled: value }))}
+                trackColor={{ false: "#374151", true: "#3B82F6" }}
+                thumbColor={settings.soundEnabled ? "#FFFFFF" : "#9CA3AF"}
+              />
+            </View>
 
-              <View style={styles.modalBody}>
-                <View style={styles.settingItem}>
-                  <View style={styles.settingInfo}>
-                    <Icon name="volume-up" size={20} color="#666" />
-                    <Text style={styles.settingText}>Sound Effects</Text>
-                  </View>
-                  <Switch
-                    value={soundEnabled}
-                    onValueChange={setSoundEnabled}
-                    trackColor={{ false: "#E0E0E0", true: "#FF6B35" }}
-                    thumbColor={soundEnabled ? "#FFFFFF" : "#FFFFFF"}
-                  />
-                </View>
-
-                <View style={styles.settingItem}>
-                  <View style={styles.settingInfo}>
-                    <Icon name="notifications" size={20} color="#666" />
-                    <Text style={styles.settingText}>Push Notifications</Text>
-                  </View>
-                  <Switch
-                    value={notificationsEnabled}
-                    onValueChange={setNotificationsEnabled}
-                    trackColor={{ false: "#E0E0E0", true: "#FF6B35" }}
-                    thumbColor={notificationsEnabled ? "#FFFFFF" : "#FFFFFF"}
-                  />
-                </View>
-
-                <View style={styles.settingItem}>
-                  <View style={styles.settingInfo}>
-                    <Icon name="vibration" size={20} color="#666" />
-                    <Text style={styles.settingText}>Vibration</Text>
-                  </View>
-                  <Switch
-                    value={vibrationEnabled}
-                    onValueChange={setVibrationEnabled}
-                    trackColor={{ false: "#E0E0E0", true: "#FF6B35" }}
-                    thumbColor={vibrationEnabled ? "#FFFFFF" : "#FFFFFF"}
-                  />
-                </View>
+            <View style={styles.settingItem}>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingName}>Push Notifications</Text>
+                <Text style={styles.settingDescription}>Get notified about game invites</Text>
               </View>
+              <Switch
+                value={settings.notificationsEnabled}
+                onValueChange={(value) => setSettings((prev) => ({ ...prev, notificationsEnabled: value }))}
+                trackColor={{ false: "#374151", true: "#3B82F6" }}
+                thumbColor={settings.notificationsEnabled ? "#FFFFFF" : "#9CA3AF"}
+              />
+            </View>
+
+            <View style={styles.settingItem}>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingName}>Vibration</Text>
+                <Text style={styles.settingDescription}>Vibrate on correct/incorrect answers</Text>
+              </View>
+              <Switch
+                value={settings.vibrationEnabled}
+                onValueChange={(value) => setSettings((prev) => ({ ...prev, vibrationEnabled: value }))}
+                trackColor={{ false: "#374151", true: "#3B82F6" }}
+                thumbColor={settings.vibrationEnabled ? "#FFFFFF" : "#9CA3AF"}
+              />
             </View>
           </View>
-        </Modal>
-
-        {/* Avatar Picker */}
-        <AvatarPicker
-          visible={avatarModalVisible}
-          onClose={() => setAvatarModalVisible(false)}
-          onSelect={(avatar) => {
-            setAvatarModalVisible(false)
-          }}
-        />
-      </SafeAreaView>
+        </View>
+      </ScrollView>
     </LinearGradient>
   )
 }
-
-// Mock data 
-const mockAchievements = [
-  {
-    id: 1,
-    title: "First Win",
-    description: "Win your first game",
-    icon: "emoji-events",
-    unlocked: true,
-  },
-  {
-    id: 2,
-    title: "Speed Demon",
-    description: "Answer 10 questions in under 5 seconds each",
-    icon: "flash-on",
-    unlocked: true,
-  },
-  {
-    id: 3,
-    title: "Perfect Game",
-    description: "Get all 10 questions correct",
-    icon: "star",
-    unlocked: false,
-  },
-  {
-    id: 4,
-    title: "Streak Master",
-    description: "Win 5 games in a row",
-    icon: "trending-up",
-    unlocked: false,
-  },
-]
-
-const mockRecentGames = [
-  {
-    id: 1,
-    opponent: "QuizMaster99",
-    result: "win",
-    score: "8-6",
-    category: "Science",
-    date: "2 hours ago",
-  },
-  {
-    id: 2,
-    opponent: "BrainBox42",
-    result: "loss",
-    score: "5-7",
-    category: "History",
-    date: "1 day ago",
-  },
-  {
-    id: 3,
-    opponent: "TriviaKing",
-    result: "win",
-    score: "9-4",
-    category: "Sports",
-    date: "2 days ago",
-  },
-]
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  safeArea: {
+  scrollView: {
     flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: "#666",
+    paddingTop: 50,
   },
   header: {
     flexDirection: "row",
@@ -510,406 +258,276 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 107, 53, 0.1)",
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
   },
   backButton: {
-    padding: 8,
+    paddingVertical: 8,
+  },
+  backButtonText: {
+    color: "white",
+    fontSize: 16,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
-    color: "#FF6B35",
+    color: "white",
   },
-  settingsButton: {
-    padding: 8,
+  logoutButton: {
+    paddingVertical: 8,
   },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  profileHeader: {
-    marginBottom: 24,
+  logoutButtonText: {
+    color: "white",
+    fontSize: 16,
   },
   profileCard: {
-    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    marginHorizontal: 20,
+    marginTop: 20,
+    borderRadius: 16,
     padding: 24,
+  },
+  profileContent: {
+    flexDirection: "row",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
   },
-  avatarContainer: {
-    position: "relative",
-    marginBottom: 16,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+  profileAvatar: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: "rgba(59, 130, 246, 0.3)",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
+    marginRight: 20,
   },
-  avatarText: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-  },
-  editAvatarBadge: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
+  profileAvatarText: {
+    fontSize: 40,
   },
   profileInfo: {
-    alignItems: "center",
+    flex: 1,
   },
-  username: {
+  profileName: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#FFFFFF",
+    color: "white",
     marginBottom: 4,
   },
-  email: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.8)",
-    marginBottom: 12,
-  },
-  rankContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+  profileEmail: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.7)",
     marginBottom: 16,
   },
-  rankText: {
-    fontSize: 14,
-    fontWeight: "bold",
-    marginLeft: 6,
-    color: "#FFFFFF",
-  },
-  editButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  editButtonText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#FF6B35",
-    marginLeft: 6,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 16,
-  },
-  statsSection: {
-    marginBottom: 24,
-  },
-  statsGrid: {
+  profileBadges: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
+    gap: 8,
   },
-  statCard: {
-    width: "48%",
-    marginBottom: 12,
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  statGradient: {
-    padding: 20,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    marginTop: 8,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.8)",
-    marginTop: 4,
-  },
-  performanceSection: {
-    marginBottom: 24,
-  },
-  performanceCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  performanceRow: {
-    marginBottom: 16,
-  },
-  performanceLabel: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#333",
-    marginBottom: 8,
-  },
-  progressContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  progressBar: {
-    flex: 1,
-    height: 8,
-    backgroundColor: "#E0E0E0",
-    borderRadius: 4,
-    marginRight: 12,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    borderRadius: 4,
-  },
-  progressText: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#333",
-    minWidth: 40,
-  },
-  achievementsSection: {
-    marginBottom: 24,
-  },
-  achievementsScroll: {
-    paddingVertical: 8,
-  },
-  achievementCard: {
-    width: 120,
-    alignItems: "center",
-    marginRight: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  achievementIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  achievementTitle: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#333",
-    textAlign: "center",
-    marginBottom: 4,
-  },
-  achievementDescription: {
-    fontSize: 10,
-    color: "#666",
-    textAlign: "center",
-  },
-  recentGamesSection: {
-    marginBottom: 24,
-  },
-  gameCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  gameHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  gameResult: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  gameResultText: {
-    fontSize: 14,
-    fontWeight: "bold",
-    marginLeft: 6,
-  },
-  gameDate: {
-    fontSize: 12,
-    color: "#666",
-  },
-  gameDetails: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  gameOpponent: {
-    fontSize: 14,
-    color: "#333",
-    flex: 1,
-  },
-  gameScore: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#FF6B35",
-    marginHorizontal: 12,
-  },
-  gameCategory: {
-    fontSize: 12,
-    color: "#666",
-    backgroundColor: "#F5F5F5",
+  rankBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
   },
-  logoutButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: 12,
-    paddingVertical: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#F44336",
+  rankBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
   },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#F44336",
-    marginLeft: 8,
+  eloBadge: {
+    backgroundColor: "rgba(245, 158, 11, 0.2)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
+  eloBadgeText: {
+    color: "#F59E0B",
+    fontSize: 12,
+    fontWeight: "600",
   },
-  modalContent: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    width: "100%",
-    maxHeight: "80%",
+  editButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
+  editButtonText: {
+    color: "white",
+    fontSize: 12,
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
+  editForm: {
+    gap: 16,
   },
-  modalBody: {
-    padding: 20,
-  },
-  inputGroup: {
-    marginBottom: 16,
+  inputContainer: {
+    gap: 8,
   },
   inputLabel: {
-    fontSize: 14,
+    color: "white",
+    fontSize: 16,
     fontWeight: "500",
-    color: "#333",
-    marginBottom: 8,
   },
-  modalInput: {
-    backgroundColor: "#F5F5F5",
-    borderRadius: 12,
+  input: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
+    color: "white",
     fontSize: 16,
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
   },
-  modalFooter: {
+  editButtons: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  saveButton: {
+    backgroundColor: "#3B82F6",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  saveButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  cancelButton: {
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  cancelButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  statsContainer: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    marginTop: 20,
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+  },
+  statIcon: {
+    marginBottom: 8,
+  },
+  statEmoji: {
+    fontSize: 24,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "white",
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.7)",
+    textAlign: "center",
+  },
+  activityCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    marginHorizontal: 20,
+    marginTop: 20,
+    borderRadius: 16,
+    padding: 20,
+  },
+  activityTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "white",
+    marginBottom: 4,
+  },
+  activitySubtitle: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginBottom: 16,
+  },
+  activityList: {
+    gap: 12,
+  },
+  activityItem: {
     flexDirection: "row",
     justifyContent: "space-between",
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: "#E0E0E0",
-  },
-  modalCancelButton: {
-    flex: 1,
-    marginRight: 8,
-    paddingVertical: 12,
     alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
+    padding: 16,
   },
-  modalCancelText: {
-    fontSize: 16,
-    color: "#666",
-  },
-  modalSaveButton: {
-    flex: 1,
-    marginLeft: 8,
-    borderRadius: 12,
-  },
-  modalSaveGradient: {
-    paddingVertical: 12,
+  activityLeft: {
+    flexDirection: "row",
     alignItems: "center",
-    borderRadius: 12,
   },
-  modalSaveText: {
+  resultDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 12,
+  },
+  activityOpponent: {
     fontSize: 16,
+    fontWeight: "600",
+    color: "white",
+  },
+  activityDetails: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginTop: 2,
+  },
+  activityRight: {
+    alignItems: "flex-end",
+  },
+  activityResult: {
+    fontSize: 14,
     fontWeight: "bold",
-    color: "#FFFFFF",
+  },
+  activityScore: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginTop: 2,
+  },
+  settingsCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 40,
+    borderRadius: 16,
+    padding: 20,
+  },
+  settingsTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "white",
+    marginBottom: 4,
+  },
+  settingsSubtitle: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginBottom: 20,
+  },
+  settingsList: {
+    gap: 20,
   },
   settingItem: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
   },
   settingInfo: {
-    flexDirection: "row",
-    alignItems: "center",
     flex: 1,
   },
-  settingText: {
+  settingName: {
     fontSize: 16,
-    color: "#333",
-    marginLeft: 12,
+    fontWeight: "600",
+    color: "white",
+    marginBottom: 4,
+  },
+  settingDescription: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.7)",
   },
 })

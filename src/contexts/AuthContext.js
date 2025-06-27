@@ -1,14 +1,15 @@
+"use client"
+
 import { createContext, useContext, useEffect, useState } from "react"
 import AsyncStorage from "@react-native-async-storage/async-storage"
-import Toast from "react-native-toast-message"
+import { useToast } from "./ToastContext"
 
-import { authService } from "../services/authService"
-
-const AuthContext = createContext()
+const AuthContext = createContext(undefined)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const { showToast } = useToast()
 
   useEffect(() => {
     checkAuthState()
@@ -18,12 +19,22 @@ export function AuthProvider({ children }) {
     try {
       const token = await AsyncStorage.getItem("authToken")
       if (token) {
-        const userData = await authService.getProfile(token)
-        if (userData) {
-          setUser(userData)
-        } else {
-          await AsyncStorage.removeItem("authToken")
+        // Simulate API call to verify token
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        const mockUser = {
+          id: "user_1",
+          username: "TestUser",
+          email: "test@example.com",
+          avatar: "🎮",
+          eloRating: 1250,
+          totalGames: 15,
+          wins: 9,
+          losses: 6,
+          isOnline: true,
+          lastSeen: new Date(),
         }
+        setUser(mockUser)
       }
     } catch (error) {
       console.error("Auth check failed:", error)
@@ -35,99 +46,87 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     try {
-      const response = await authService.login(email, password)
-      if (response.success) {
-        await AsyncStorage.setItem("authToken", response.token)
-        setUser(response.user)
-        Toast.show({
-          type: "success",
-          text1: "Welcome back!",
-          text2: `Hello ${response.user.username}`,
-        })
+      setLoading(true)
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+
+      if (email === "test@example.com" && password === "password") {
+        const mockUser = {
+          id: "user_1",
+          username: "TestUser",
+          email: email,
+          avatar: "🎮",
+          eloRating: 1250,
+          totalGames: 15,
+          wins: 9,
+          losses: 6,
+          isOnline: true,
+          lastSeen: new Date(),
+        }
+
+        await AsyncStorage.setItem("authToken", "mock_token_123")
+        setUser(mockUser)
+
+        showToast("Welcome back!", `Hello ${mockUser.username}`, "success")
         return true
       } else {
-        Toast.show({
-          type: "error",
-          text1: "Login Failed",
-          text2: response.message || "Invalid credentials",
-        })
+        showToast("Login Failed", "Invalid credentials", "error")
         return false
       }
     } catch (error) {
-      console.error("Login error:", error)
-      Toast.show({
-        type: "error",
-        text1: "Login Failed",
-        text2: "Please try again.",
-      })
+      showToast("Login Failed", "Please try again", "error")
       return false
+    } finally {
+      setLoading(false)
     }
   }
 
   const register = async (username, email, password) => {
     try {
-      const response = await authService.register(username, email, password)
-      if (response.success) {
-        await AsyncStorage.setItem("authToken", response.token)
-        setUser(response.user)
-        Toast.show({
-          type: "success",
-          text1: "Account Created!",
-          text2: `Welcome to Quiz Battle, ${response.user.username}!`,
-        })
-        return true
-      } else {
-        Toast.show({
-          type: "error",
-          text1: "Registration Failed",
-          text2: response.message || "Please try again",
-        })
-        return false
-      }
-    } catch (error) {
-      console.error("Registration error:", error)
-      Toast.show({
-        type: "error",
-        text1: "Registration Failed",
-        text2: "Please try again.",
-      })
-      return false
-    }
-  }
+      setLoading(true)
+      await new Promise((resolve) => setTimeout(resolve, 1500))
 
-  const googleSignIn = async () => {
-    Toast.show({
-      type: "info",
-      text1: "Google Sign-In Coming Soon",
-      text2: "Please use email/password for now",
-    })
-    return false
+      const mockUser = {
+        id: `user_${Date.now()}`,
+        username,
+        email,
+        avatar: "🎮",
+        eloRating: 1200,
+        totalGames: 0,
+        wins: 0,
+        losses: 0,
+        isOnline: true,
+        lastSeen: new Date(),
+      }
+
+      await AsyncStorage.setItem("authToken", "mock_token_123")
+      setUser(mockUser)
+
+      showToast("Account Created!", `Welcome to QuizBattle, ${username}!`, "success")
+      return true
+    } catch (error) {
+      showToast("Registration Failed", "Please try again", "error")
+      return false
+    } finally {
+      setLoading(false)
+    }
   }
 
   const logout = async () => {
-    try {
-      await AsyncStorage.removeItem("authToken")
-      setUser(null)
-      Toast.show({
-        type: "info",
-        text1: "Logged Out",
-        text2: "See you next time!",
-      })
-    } catch (error) {
-      console.error("Logout error:", error)
-    }
+    await AsyncStorage.removeItem("authToken")
+    setUser(null)
+    showToast("Logged Out", "See you next time!", "info")
   }
 
-  const updateProfile = async (profileData) => {
+  const updateProfile = async (data) => {
     try {
-      const response = await authService.updateProfile(profileData)
-      if (response.success) {
-        setUser(response.user)
+      if (user) {
+        setUser({ ...user, ...data })
+        showToast("Profile Updated", "Your changes have been saved", "success")
         return true
       }
       return false
     } catch (error) {
-      console.error("Update profile error:", error)
+      showToast("Update Failed", "Please try again", "error")
       return false
     }
   }
@@ -139,7 +138,6 @@ export function AuthProvider({ children }) {
         loading,
         login,
         register,
-        googleSignIn,
         logout,
         updateProfile,
       }}

@@ -1,248 +1,236 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView, Alert } from "react-native"
+import { useState } from "react"
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
-import Icon from "react-native-vector-icons/MaterialIcons"
-import { Picker } from "@react-native-picker/picker"
-import * as Animatable from "react-native-animatable"
-
+import { useNavigation } from "@react-navigation/native"
 import { useAuth } from "../contexts/AuthContext"
 import { useGame } from "../contexts/GameContext"
-import { gameService } from "../services/gameService"
+import { useSocket } from "../contexts/SocketContext"
 
-export default function DashboardScreen({ navigation }) {
-  const { user, logout } = useAuth()
-  const { createRoom, joinRoom } = useGame()
-  const [categories, setCategories] = useState([])
-  const [selectedCategory, setSelectedCategory] = useState("")
-  const [selectedDifficulty, setSelectedDifficulty] = useState("medium")
+export default function DashboardScreen() {
+  const navigation = useNavigation()
   const [roomCode, setRoomCode] = useState("")
-  const [loading, setLoading] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState("mixed")
+  const [selectedDifficulty, setSelectedDifficulty] = useState("medium")
 
-  useEffect(() => {
-    fetchCategories()
-  }, [])
+  const { user, logout } = useAuth()
+  const { createRoom, joinRoom, findMatch, isSearching } = useGame()
+  const { isConnected, onlineUsers } = useSocket()
 
-  const fetchCategories = async () => {
-    const response = await gameService.getCategories()
-    if (response.success) {
-      setCategories(response.categories)
-      if (response.categories.length > 0) {
-        setSelectedCategory(response.categories[0].id.toString())
+  const handleCreateRoom = async () => {
+    const code = await createRoom(selectedCategory, selectedDifficulty)
+    if (code) {
+      navigation.navigate("GameLobby")
+    }
+  }
+
+  const handleJoinRoom = async () => {
+    if (roomCode.trim()) {
+      const success = await joinRoom(roomCode.trim().toUpperCase())
+      if (success) {
+        navigation.navigate("GameLobby")
       }
     }
   }
 
-  const handleCreateRoom = async () => {
-    if (!selectedCategory) {
-      Alert.alert("Error", "Please select a category")
-      return
-    }
-
-    setLoading(true)
-    const roomCode = await createRoom(Number.parseInt(selectedCategory), selectedDifficulty)
-    if (roomCode) {
-      navigation.navigate("GameLobby")
-    }
-    setLoading(false)
-  }
-
-  const handleJoinRoom = async () => {
-    if (!roomCode.trim()) {
-      Alert.alert("Error", "Please enter a room code")
-      return
-    }
-
-    setLoading(true)
-    const success = await joinRoom(roomCode.trim().toUpperCase())
-    if (success) {
-      navigation.navigate("GameLobby")
-    }
-    setLoading(false)
+  const handleFindMatch = async () => {
+    await findMatch(selectedCategory, selectedDifficulty)
+    navigation.navigate("Matchmaking")
   }
 
   const handleLogout = () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Logout", onPress: logout },
-    ])
+    logout()
+    navigation.navigate("Welcome")
   }
 
-  return (
-    <LinearGradient colors={["#f8fafc", "#e2e8f0", "#cbd5e1"]} style={styles.container}>
-      <View style={styles.backgroundShapes}>
-        <LinearGradient colors={["#8b5cf6", "#a78bfa"]} style={[styles.shape, styles.shape1]} />
-        <LinearGradient colors={["#ec4899", "#f472b6"]} style={[styles.shape, styles.shape2]} />
-        <LinearGradient colors={["#06b6d4", "#67e8f9"]} style={[styles.shape, styles.shape3]} />
-      </View>
+  if (!user) return null
 
-      <SafeAreaView style={styles.safeArea}>
+  return (
+    <LinearGradient colors={["#1F2937", "#8B5CF6", "#1F2937"]} style={styles.container}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={styles.logoContainer}>
-              <LinearGradient colors={["#8b5cf6", "#a78bfa"]} style={styles.logoGradient}>
-                <Icon name="psychology" size={20} color="#FFFFFF" />
-              </LinearGradient>
+              <Text style={styles.logoEmoji}>🧠</Text>
             </View>
             <View>
-              <Text style={styles.headerTitle}>QuizBattle</Text>
-              <View style={styles.eloContainer}>
-                <Icon name="star" size={12} color="#f59e0b" />
-                <Text style={styles.eloText}>{user?.elo_rating} ELO</Text>
+              <Text style={styles.appName}>QuizBattle</Text>
+              <View style={styles.connectionStatus}>
+                <View style={[styles.statusDot, { backgroundColor: isConnected ? "#10B981" : "#EF4444" }]} />
+                <Text style={styles.statusText}>{isConnected ? "Connected" : "Disconnected"}</Text>
               </View>
             </View>
           </View>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <Icon name="logout" size={20} color="#64748b" />
-          </TouchableOpacity>
+
+          <View style={styles.headerRight}>
+            <View style={styles.eloBadge}>
+              <Text style={styles.eloText}>🏆 {user.eloRating} ELO</Text>
+            </View>
+            <TouchableOpacity style={styles.headerButton} onPress={() => navigation.navigate("Profile")}>
+              <Text style={styles.headerButtonText}>⚙️ Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerButton} onPress={handleLogout}>
+              <Text style={styles.headerButtonText}>🚪 Logout</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Welcome Section */}
-          <Animatable.View animation="fadeInDown" style={styles.welcomeSection}>
-            <Text style={styles.welcomeTitle}>Welcome back, {user?.username}!</Text>
-            <Text style={styles.welcomeSubtitle}>Ready for your next challenge?</Text>
-          </Animatable.View>
+        {/* Welcome Section */}
+        <View style={styles.welcomeSection}>
+          <Text style={styles.welcomeTitle}>Welcome back, {user.username}! 👋</Text>
+          <Text style={styles.welcomeSubtitle}>Ready for your next quiz battle? Choose your game mode below.</Text>
+        </View>
 
-          {/* Stats Cards */}
-          <Animatable.View animation="fadeInUp" delay={200} style={styles.statsContainer}>
-            <View style={styles.statCard}>
-              <LinearGradient colors={["#10b981", "#34d399"]} style={styles.statGradient}>
-                <Icon name="emoji-events" size={20} color="#FFFFFF" />
-                <Text style={styles.statNumber}>{user?.wins}</Text>
-                <Text style={styles.statLabel}>Wins</Text>
-              </LinearGradient>
+        {/* Stats Cards */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <View style={styles.statIcon}>
+              <Text style={styles.statEmoji}>⚡</Text>
             </View>
-            <View style={styles.statCard}>
-              <LinearGradient colors={["#ef4444", "#f87171"]} style={styles.statGradient}>
-                <Icon name="close" size={20} color="#FFFFFF" />
-                <Text style={styles.statNumber}>{user?.losses}</Text>
-                <Text style={styles.statLabel}>Losses</Text>
-              </LinearGradient>
-            </View>
-            <View style={styles.statCard}>
-              <LinearGradient colors={["#3b82f6", "#60a5fa"]} style={styles.statGradient}>
-                <Icon name="games" size={20} color="#FFFFFF" />
-                <Text style={styles.statNumber}>{user?.total_games}</Text>
-                <Text style={styles.statLabel}>Games</Text>
-              </LinearGradient>
-            </View>
-            <View style={styles.statCard}>
-              <LinearGradient colors={["#8b5cf6", "#a78bfa"]} style={styles.statGradient}>
-                <Icon name="percent" size={20} color="#FFFFFF" />
-                <Text style={styles.statNumber}>
-                  {user?.total_games > 0 ? Math.round((user.wins / user.total_games) * 100) : 0}%
-                </Text>
-                <Text style={styles.statLabel}>Win Rate</Text>
-              </LinearGradient>
-            </View>
-          </Animatable.View>
+            <Text style={styles.statLabel}>Total Games</Text>
+            <Text style={styles.statValue}>{user.totalGames}</Text>
+          </View>
 
-          {/* Create Room Card */}
-          <Animatable.View animation="fadeInUp" delay={400} style={styles.card}>
-            <View style={styles.cardHeader}>
-              <LinearGradient colors={["#8b5cf6", "#a78bfa"]} style={styles.cardIcon}>
-                <Icon name="add-circle" size={20} color="#FFFFFF" />
-              </LinearGradient>
-              <Text style={styles.cardTitle}>Create Room</Text>
+          <View style={styles.statCard}>
+            <View style={styles.statIcon}>
+              <Text style={styles.statEmoji}>🏆</Text>
+            </View>
+            <Text style={styles.statLabel}>Wins</Text>
+            <Text style={[styles.statValue, { color: "#10B981" }]}>{user.wins}</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={styles.statIcon}>
+              <Text style={styles.statEmoji}>📊</Text>
+            </View>
+            <Text style={styles.statLabel}>Win Rate</Text>
+            <Text style={[styles.statValue, { color: "#F59E0B" }]}>
+              {user.totalGames > 0 ? Math.round((user.wins / user.totalGames) * 100) : 0}%
+            </Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={styles.statIcon}>
+              <Text style={styles.statEmoji}>👥</Text>
+            </View>
+            <Text style={styles.statLabel}>Online Players</Text>
+            <Text style={[styles.statValue, { color: "#8B5CF6" }]}>{onlineUsers.length}</Text>
+          </View>
+        </View>
+
+        {/* Game Options */}
+        <View style={styles.gameOptionsContainer}>
+          {/* Quick Match */}
+          <View style={styles.gameCard}>
+            <View style={styles.gameCardHeader}>
+              <Text style={styles.gameCardTitle}>⚡ Quick Match</Text>
+              <Text style={styles.gameCardDescription}>Find an opponent instantly and start battling</Text>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Category</Text>
-              <View style={styles.pickerContainer}>
-                <Picker selectedValue={selectedCategory} onValueChange={setSelectedCategory} style={styles.picker}>
-                  {categories.map((category) => (
-                    <Picker.Item
-                      key={category.id}
-                      label={`${category.icon} ${category.name}`}
-                      value={category.id.toString()}
-                      color="#1e293b"
-                    />
-                  ))}
-                </Picker>
+            <View style={styles.gameCardContent}>
+              <View style={styles.optionsRow}>
+                <View style={styles.optionContainer}>
+                  <Text style={styles.optionLabel}>Category</Text>
+                  <TouchableOpacity style={styles.selectButton}>
+                    <Text style={styles.selectButtonText}>{selectedCategory}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.optionContainer}>
+                  <Text style={styles.optionLabel}>Difficulty</Text>
+                  <TouchableOpacity style={styles.selectButton}>
+                    <Text style={styles.selectButtonText}>{selectedDifficulty}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
+
+              <TouchableOpacity style={styles.primaryButton} onPress={handleFindMatch} disabled={isSearching}>
+                <LinearGradient colors={["#F59E0B", "#F97316"]} style={styles.buttonGradient}>
+                  <Text style={styles.buttonText}>{isSearching ? "Searching..." : "🔍 Find Match"}</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Private Room */}
+          <View style={styles.gameCard}>
+            <View style={styles.gameCardHeader}>
+              <Text style={styles.gameCardTitle}>👥 Private Room</Text>
+              <Text style={styles.gameCardDescription}>Create a room or join with a code</Text>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Difficulty</Text>
-              <View style={styles.pickerContainer}>
-                <Picker selectedValue={selectedDifficulty} onValueChange={setSelectedDifficulty} style={styles.picker}>
-                  <Picker.Item label="Easy" value="easy" color="#1e293b" />
-                  <Picker.Item label="Medium" value="medium" color="#1e293b" />
-                  <Picker.Item label="Hard" value="hard" color="#1e293b" />
-                </Picker>
+            <View style={styles.gameCardContent}>
+              <TouchableOpacity style={styles.primaryButton} onPress={handleCreateRoom}>
+                <LinearGradient colors={["#3B82F6", "#8B5CF6"]} style={styles.buttonGradient}>
+                  <Text style={styles.buttonText}>➕ Create Room</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR</Text>
+                <View style={styles.dividerLine} />
               </View>
-            </View>
 
-            <TouchableOpacity
-              style={[styles.actionButton, loading && styles.disabledButton]}
-              onPress={handleCreateRoom}
-              disabled={loading}
-            >
-              <LinearGradient colors={["#8b5cf6", "#a78bfa"]} style={styles.buttonGradient}>
-                <Icon name="add" size={18} color="#FFFFFF" />
-                <Text style={styles.buttonText}>{loading ? "Creating..." : "Create Room"}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animatable.View>
-
-          {/* Join Room Card */}
-          <Animatable.View animation="fadeInUp" delay={600} style={styles.card}>
-            <View style={styles.cardHeader}>
-              <LinearGradient colors={["#06b6d4", "#67e8f9"]} style={styles.cardIcon}>
-                <Icon name="group-add" size={20} color="#FFFFFF" />
-              </LinearGradient>
-              <Text style={styles.cardTitle}>Join Room</Text>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Room Code</Text>
-              <View style={styles.inputContainer}>
-                <Icon name="vpn-key" size={20} color="#94a3b8" style={styles.inputIcon} />
+              <View style={styles.joinRoomContainer}>
+                <Text style={styles.optionLabel}>Room Code</Text>
                 <TextInput
-                  style={styles.textInput}
+                  style={styles.roomCodeInput}
+                  placeholder="Enter 6-digit code"
+                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
                   value={roomCode}
-                  onChangeText={setRoomCode}
-                  placeholder="Enter room code"
-                  placeholderTextColor="#94a3b8"
-                  autoCapitalize="characters"
+                  onChangeText={(text) => setRoomCode(text.toUpperCase())}
                   maxLength={6}
-                  editable={!loading}
                 />
               </View>
+
+              <TouchableOpacity
+                style={[styles.secondaryButton, roomCode.length !== 6 && styles.disabledButton]}
+                onPress={handleJoinRoom}
+                disabled={roomCode.length !== 6}
+              >
+                <Text style={styles.secondaryButtonText}>Join Room</Text>
+              </TouchableOpacity>
             </View>
+          </View>
+        </View>
 
-            <TouchableOpacity
-              style={[styles.actionButton, loading && styles.disabledButton]}
-              onPress={handleJoinRoom}
-              disabled={loading}
-            >
-              <LinearGradient colors={["#06b6d4", "#67e8f9"]} style={styles.buttonGradient}>
-                <Icon name="login" size={18} color="#FFFFFF" />
-                <Text style={styles.buttonText}>{loading ? "Joining..." : "Join Room"}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animatable.View>
+        {/* Recent Activity */}
+        <View style={styles.activityCard}>
+          <Text style={styles.activityTitle}>Recent Activity</Text>
+          <Text style={styles.activitySubtitle}>Your latest quiz battles</Text>
 
-          {/* Quick Actions */}
-          <Animatable.View animation="fadeInUp" delay={800} style={styles.quickActions}>
-            <TouchableOpacity style={styles.quickActionButton} onPress={() => navigation.navigate("Leaderboard")}>
-              <LinearGradient colors={["#f59e0b", "#fbbf24"]} style={styles.quickActionGradient}>
-                <Icon name="leaderboard" size={24} color="#FFFFFF" />
-                <Text style={styles.quickActionText}>Leaderboard</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.quickActionButton} onPress={() => navigation.navigate("Profile")}>
-              <LinearGradient colors={["#ec4899", "#f472b6"]} style={styles.quickActionGradient}>
-                <Icon name="person" size={24} color="#FFFFFF" />
-                <Text style={styles.quickActionText}>Profile</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animatable.View>
-        </ScrollView>
-      </SafeAreaView>
+          <View style={styles.activityList}>
+            {[
+              { opponent: "QuizMaster", result: "win", score: "8-6", category: "Science", time: "2 hours ago" },
+              { opponent: "BrainBox", result: "loss", score: "5-7", category: "History", time: "1 day ago" },
+              { opponent: "TriviaKing", result: "win", score: "9-4", category: "Sports", time: "2 days ago" },
+            ].map((game, index) => (
+              <View key={index} style={styles.activityItem}>
+                <View style={styles.activityLeft}>
+                  <View
+                    style={[styles.resultDot, { backgroundColor: game.result === "win" ? "#10B981" : "#EF4444" }]}
+                  />
+                  <View>
+                    <Text style={styles.activityOpponent}>vs {game.opponent}</Text>
+                    <Text style={styles.activityDetails}>
+                      {game.category} • {game.time}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.activityRight}>
+                  <Text style={[styles.activityResult, { color: game.result === "win" ? "#10B981" : "#EF4444" }]}>
+                    {game.result === "win" ? "Victory" : "Defeat"}
+                  </Text>
+                  <Text style={styles.activityScore}>{game.score}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      </ScrollView>
     </LinearGradient>
   )
 }
@@ -251,252 +239,292 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  backgroundShapes: {
-    position: "absolute",
-    width: "100%",
-    height: "100%",
-  },
-  shape: {
-    position: "absolute",
-    borderRadius: 100,
-    opacity: 0.08,
-  },
-  shape1: {
-    width: 200,
-    height: 200,
-    top: "5%",
-    right: "-10%",
-  },
-  shape2: {
-    width: 150,
-    height: 150,
-    top: "50%",
-    left: "-15%",
-  },
-  shape3: {
-    width: 120,
-    height: 120,
-    bottom: "15%",
-    right: "10%",
-  },
-  safeArea: {
+  scrollView: {
     flex: 1,
-    zIndex: 1,
+    paddingTop: 50,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
     borderBottomWidth: 1,
-    borderBottomColor: "#f1f5f9",
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
   },
   headerLeft: {
     flexDirection: "row",
     alignItems: "center",
   },
   logoContainer: {
-    marginRight: 12,
-  },
-  logoGradient: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
+    marginRight: 12,
   },
-  headerTitle: {
+  logoEmoji: {
+    fontSize: 20,
+  },
+  appName: {
     fontSize: 18,
-    fontWeight: "700",
-    color: "#1e293b",
+    fontWeight: "bold",
+    color: "white",
   },
-  eloContainer: {
+  connectionStatus: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fef3c7",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
     marginTop: 2,
   },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  statusText: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.7)",
+  },
+  headerRight: {
+    alignItems: "flex-end",
+  },
+  eloBadge: {
+    backgroundColor: "rgba(245, 158, 11, 0.2)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
   eloText: {
-    color: "#d97706",
-    fontSize: 10,
+    color: "#F59E0B",
+    fontSize: 12,
     fontWeight: "600",
-    marginLeft: 4,
   },
-  logoutButton: {
-    padding: 8,
-    backgroundColor: "#f8fafc",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
+  headerButton: {
+    marginBottom: 4,
   },
-  content: {
-    flex: 1,
-    padding: 24,
+  headerButtonText: {
+    color: "white",
+    fontSize: 12,
   },
   welcomeSection: {
-    marginBottom: 32,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
   },
   welcomeTitle: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1e293b",
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "white",
     marginBottom: 8,
   },
   welcomeSubtitle: {
     fontSize: 16,
-    color: "#64748b",
+    color: "rgba(255, 255, 255, 0.7)",
   },
   statsContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 32,
+    paddingHorizontal: 20,
+    marginBottom: 24,
     gap: 12,
   },
   statCard: {
     flex: 1,
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  statGradient: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 12,
     padding: 16,
-    borderRadius: 16,
     alignItems: "center",
   },
-  statNumber: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 10,
-    color: "rgba(255, 255, 255, 0.9)",
-    fontWeight: "500",
-  },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 24,
-    elevation: 12,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  cardIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1e293b",
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
+  statIcon: {
     marginBottom: 8,
   },
-  pickerContainer: {
-    backgroundColor: "#f8fafc",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
+  statEmoji: {
+    fontSize: 20,
   },
-  picker: {
-    height: 50,
+  statLabel: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginBottom: 4,
   },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f8fafc",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    paddingHorizontal: 16,
+  statValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "white",
   },
-  inputIcon: {
-    marginRight: 12,
+  gameOptionsContainer: {
+    paddingHorizontal: 20,
+    gap: 20,
   },
-  textInput: {
-    flex: 1,
-    paddingVertical: 16,
-    fontSize: 16,
-    color: "#1e293b",
+  gameCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 16,
+    padding: 20,
   },
-  actionButton: {
-    borderRadius: 12,
-    marginTop: 8,
-    shadowColor: "#8b5cf6",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
+  gameCardHeader: {
+    marginBottom: 16,
   },
-  buttonGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    borderRadius: 12,
+  gameCardTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "white",
+    marginBottom: 4,
   },
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-    marginLeft: 8,
+  gameCardDescription: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.7)",
   },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  quickActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 12,
+  gameCardContent: {
     gap: 16,
   },
-  quickActionButton: {
-    flex: 1,
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
+  optionsRow: {
+    flexDirection: "row",
+    gap: 16,
   },
-  quickActionGradient: {
-    padding: 20,
-    borderRadius: 16,
+  optionContainer: {
+    flex: 1,
+  },
+  optionLabel: {
+    fontSize: 14,
+    color: "white",
+    marginBottom: 8,
+    fontWeight: "500",
+  },
+  selectButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  selectButtonText: {
+    color: "white",
+    fontSize: 16,
+    textTransform: "capitalize",
+  },
+  primaryButton: {
+    height: 48,
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  buttonGradient: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
   },
-  quickActionText: {
-    fontSize: 14,
+  buttonText: {
+    color: "white",
+    fontSize: 16,
     fontWeight: "600",
-    color: "#FFFFFF",
-    marginTop: 8,
+  },
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 8,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+  },
+  dividerText: {
+    color: "rgba(255, 255, 255, 0.7)",
+    fontSize: 12,
+    marginHorizontal: 16,
+  },
+  joinRoomContainer: {
+    gap: 8,
+  },
+  roomCodeInput: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: "white",
+    fontSize: 16,
+    textAlign: "center",
+    fontFamily: "monospace",
+  },
+  secondaryButton: {
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  secondaryButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  activityCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 16,
+    padding: 20,
+    margin: 20,
+    marginTop: 24,
+  },
+  activityTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "white",
+    marginBottom: 4,
+  },
+  activitySubtitle: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginBottom: 16,
+  },
+  activityList: {
+    gap: 12,
+  },
+  activityItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 12,
+    padding: 12,
+  },
+  activityLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  resultDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 12,
+  },
+  activityOpponent: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "white",
+  },
+  activityDetails: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginTop: 2,
+  },
+  activityRight: {
+    alignItems: "flex-end",
+  },
+  activityResult: {
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  activityScore: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginTop: 2,
   },
 })
