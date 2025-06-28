@@ -21,7 +21,7 @@ export default function QuickPlayScreen({ navigation }) {
   const [gamePin, setGamePin] = useState("")
   const [playerName, setPlayerName] = useState("")
   const [loading, setLoading] = useState(false)
-  const [step, setStep] = useState(1) // 1: Enter PIN, 2: Enter Name, 3: Joining
+  const [step, setStep] = useState(1) 
 
   // Animation 
   const pulseAnim = useRef(new Animated.Value(1)).current
