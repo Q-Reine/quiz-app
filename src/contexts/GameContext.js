@@ -1,54 +1,113 @@
 import { createContext, useContext, useEffect, useState } from "react"
-import Toast from "react-native-toast-message"
-
-import { gameService } from "../services/gameService"
+import { useSocket } from "./SocketContext"
 import { useAuth } from "./AuthContext"
+import { useToast } from "./ToastContext"
 
-const GameContext = createContext()
+const GameContext = createContext(undefined)
+
+const mockQuestions = [
+  {
+    id: "q1",
+    question: "What is the capital of Australia?",
+    options: ["Sydney", "Melbourne", "Canberra", "Perth"],
+    correctAnswer: 2,
+    category: "Geography",
+    difficulty: "medium",
+    timeLimit: 15,
+  },
+  {
+    id: "q2",
+    question: "What is the chemical symbol for gold?",
+    options: ["Go", "Au", "Ag", "Gd"],
+    correctAnswer: 1,
+    category: "Science",
+    difficulty: "medium",
+    timeLimit: 15,
+  },
+  {
+    id: "q3",
+    question: "Who painted the Mona Lisa?",
+    options: ["Van Gogh", "Picasso", "Da Vinci", "Monet"],
+    correctAnswer: 2,
+    category: "Art",
+    difficulty: "easy",
+    timeLimit: 15,
+  },
+  {
+    id: "q4",
+    question: "What is the largest planet in our solar system?",
+    options: ["Earth", "Jupiter", "Saturn", "Mars"],
+    correctAnswer: 1,
+    category: "Science",
+    difficulty: "easy",
+    timeLimit: 15,
+  },
+  {
+    id: "q5",
+    question: "In which year did World War II end?",
+    options: ["1944", "1945", "1946", "1947"],
+    correctAnswer: 1,
+    category: "History",
+    difficulty: "medium",
+    timeLimit: 15,
+  },
+]
 
 export function GameProvider({ children }) {
-  const { user } = useAuth()
   const [currentRoom, setCurrentRoom] = useState(null)
-  const [currentQuestion, setCurrentQuestion] = useState(null)
-  const [questions, setQuestions] = useState([])
-  const [opponent, setOpponent] = useState(null)
+  const [isSearching, setIsSearching] = useState(false)
   const [timeLeft, setTimeLeft] = useState(15)
-  const [gamePhase, setGamePhase] = useState("waiting")
+  const [gamePhase, setGamePhase] = useState("lobby")
   const [playerAnswer, setPlayerAnswer] = useState(null)
   const [opponentAnswer, setOpponentAnswer] = useState(null)
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [questionStartTime, setQuestionStartTime] = useState(null)
 
-  
+  const { user } = useAuth()
+  const { sendMessage, onMessage, joinRoom: socketJoinRoom, leaveRoom: socketLeaveRoom } = useSocket()
+  const { showToast } = useToast()
+
+  // Timer effects
   useEffect(() => {
-    if (gamePhase === "question" && timeLeft > 0) {
+    if (gamePhase === "question" && timeLeft > 0 && playerAnswer === null) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000)
       return () => clearTimeout(timer)
-    } else if (timeLeft === 0 && gamePhase === "question") {
-      submitAnswer("")
+    } else if (timeLeft === 0 && gamePhase === "question" && playerAnswer === null) {
+      submitAnswer(-1)
+    }
+  }, [timeLeft, gamePhase, playerAnswer])
+
+  useEffect(() => {
+    if (gamePhase === "countdown" && timeLeft > 0) {
+      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000)
+      return () => clearTimeout(timer)
+    } else if (timeLeft === 0 && gamePhase === "countdown") {
+      startNextQuestion()
     }
   }, [timeLeft, gamePhase])
 
- 
+  // Simulate opponent answers
   useEffect(() => {
-    if (gamePhase === "answer" && playerAnswer !== null && !opponentAnswer) {
-      const opponentDelay = Math.random() * 3000 + 1000 // 1-4 seconds
+    if (gamePhase === "question" && playerAnswer !== null && opponentAnswer === null && currentRoom) {
+      const opponentDelay = Math.random() * 8000 + 2000
       const timer = setTimeout(() => {
-        const randomAnswers = currentQuestion
-          ? [currentQuestion.correct_answer, ...currentQuestion.incorrect_answers]
-          : ["A", "B", "C", "D"]
-        const randomAnswer = randomAnswers[Math.floor(Math.random() * randomAnswers.length)]
+        const randomAnswer = Math.floor(Math.random() * 4)
         setOpponentAnswer(randomAnswer)
 
-       
+        setCurrentRoom((prev) => {
+          if (!prev) return prev
+          const updatedPlayers = prev.players.map((p) =>
+            p.id !== user?.id ? { ...p, hasAnswered: true, currentAnswer: randomAnswer, answerTime: Date.now() } : p,
+          )
+          return { ...prev, players: updatedPlayers }
+        })
+
         setTimeout(() => {
           setGamePhase("results")
-
-          
           setTimeout(() => {
-            if (currentQuestionIndex < 9) {
+            if (currentRoom.currentQuestion < currentRoom.questions.length - 1) {
               nextQuestion()
             } else {
-              setGamePhase("finished")
+              finishGame()
             }
           }, 3000)
         }, 500)
@@ -56,165 +115,296 @@ export function GameProvider({ children }) {
 
       return () => clearTimeout(timer)
     }
-  }, [gamePhase, playerAnswer, opponentAnswer, currentQuestion, currentQuestionIndex])
+  }, [gamePhase, playerAnswer, opponentAnswer, currentRoom, user])
 
-  const createRoom = async (categoryId, difficulty) => {
-    try {
-      const response = await gameService.createRoom(categoryId, difficulty)
-      if (response.success) {
-        setCurrentRoom(response.room)
-        setGamePhase("waiting")
-
-       
-        const gameQuestions = gameService.getQuestionsByCategory(categoryId, difficulty, 10)
-        setQuestions(gameQuestions)
-
-        return response.room.room_code
-      } else {
-        Toast.show({
-          type: "error",
-          text1: "Failed to Create Room",
-          text2: response.message || "Please try again",
-        })
-        return null
+  // Socket listeners
+  useEffect(() => {
+    onMessage("match_found", (data) => {
+      setIsSearching(false)
+      const room = {
+        id: data.roomId,
+        code: data.roomCode || "",
+        players: [
+          {
+            id: user.id,
+            username: user.username,
+            avatar: user.avatar,
+            eloRating: user.eloRating,
+            score: 0,
+            isReady: true,
+            hasAnswered: false,
+            currentAnswer: null,
+            answerTime: null,
+          },
+          {
+            id: data.opponent.id,
+            username: data.opponent.username,
+            avatar: data.opponent.avatar,
+            eloRating: data.opponent.eloRating,
+            score: 0,
+            isReady: true,
+            hasAnswered: false,
+            currentAnswer: null,
+            answerTime: null,
+          },
+        ],
+        currentQuestion: 0,
+        questions: mockQuestions.slice(0, 5),
+        status: "waiting",
+        category: data.category || "Mixed",
+        difficulty: data.difficulty || "medium",
+        maxPlayers: 2,
+        startTime: null,
       }
+      setCurrentRoom(room)
+      socketJoinRoom(data.roomId)
+
+      showToast("Match Found!", `You're matched with ${data.opponent.username}`, "success")
+
+      setTimeout(() => {
+        startGame()
+      }, 3000)
+    })
+  }, [user])
+
+  const createRoom = async (category, difficulty) => {
+    try {
+      if (!user) return null
+
+      const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+      const room = {
+        id: `room_${Date.now()}`,
+        code: roomCode,
+        players: [
+          {
+            id: user.id,
+            username: user.username,
+            avatar: user.avatar,
+            eloRating: user.eloRating,
+            score: 0,
+            isReady: true,
+            hasAnswered: false,
+            currentAnswer: null,
+            answerTime: null,
+          },
+        ],
+        currentQuestion: 0,
+        questions: mockQuestions.slice(0, 5),
+        status: "waiting",
+        category,
+        difficulty,
+        maxPlayers: 2,
+        startTime: null,
+      }
+
+      setCurrentRoom(room)
+      socketJoinRoom(room.id)
+
+      showToast("Room Created!", `Room code: ${roomCode}`, "success")
+      return roomCode
     } catch (error) {
-      console.error("Create room error:", error)
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Failed to create room",
-      })
+      showToast("Failed to Create Room", "Please try again", "error")
       return null
     }
   }
 
-  const joinRoom = async (roomCode) => {
+  const joinRoom = async (code) => {
     try {
-      const response = await gameService.joinRoom(roomCode)
-      if (response.success) {
-        setCurrentRoom(response.room)
-        setOpponent(response.opponent)
+      if (!user) return false
 
-       
-        const gameQuestions = gameService.getQuestionsByCategory(
-          response.room.category_id,
-          response.room.difficulty,
-          10,
-        )
-        setQuestions(gameQuestions)
+      await new Promise((resolve) => setTimeout(resolve, 1000))
 
-      
-        setTimeout(() => {
-          startGame(gameQuestions)
-        }, 2000)
-
-        return true
-      } else {
-        Toast.show({
-          type: "error",
-          text1: "Failed to Join Room",
-          text2: response.message || "Room not found",
-        })
-        return false
+      const room = {
+        id: `room_${Date.now()}`,
+        code: code,
+        players: [
+          {
+            id: "host_user",
+            username: "RoomHost",
+            avatar: "🎯",
+            eloRating: 1400,
+            score: 0,
+            isReady: true,
+            hasAnswered: false,
+            currentAnswer: null,
+            answerTime: null,
+          },
+          {
+            id: user.id,
+            username: user.username,
+            avatar: user.avatar,
+            eloRating: user.eloRating,
+            score: 0,
+            isReady: true,
+            hasAnswered: false,
+            currentAnswer: null,
+            answerTime: null,
+          },
+        ],
+        currentQuestion: 0,
+        questions: mockQuestions.slice(0, 5),
+        status: "waiting",
+        category: "Mixed",
+        difficulty: "medium",
+        maxPlayers: 2,
+        startTime: null,
       }
+
+      setCurrentRoom(room)
+      socketJoinRoom(room.id)
+
+      showToast("Joined Room!", `Welcome to ${code}`, "success")
+
+      setTimeout(() => {
+        startGame()
+      }, 2000)
+
+      return true
     } catch (error) {
-      console.error("Join room error:", error)
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Failed to join room",
-      })
+      showToast("Failed to Join Room", "Room not found or full", "error")
       return false
     }
   }
 
-  const startGame = (gameQuestions) => {
-    if (gameQuestions && gameQuestions.length > 0) {
-      setCurrentQuestion(gameQuestions[0])
-      setCurrentQuestionIndex(0)
+  const findMatch = async (category, difficulty) => {
+    setIsSearching(true)
+    sendMessage("find_match", { category, difficulty })
+    showToast("Searching for Match", "Finding an opponent...", "info")
+  }
+
+  const startGame = () => {
+    if (currentRoom && currentRoom.players.length === 2) {
+      setCurrentRoom((prev) => (prev ? { ...prev, status: "playing", startTime: Date.now() } : prev))
+      setGamePhase("countdown")
+      setTimeLeft(3)
+      showToast("Game Starting!", "Get ready for the first question", "info")
+    }
+  }
+
+  const startNextQuestion = () => {
+    if (currentRoom) {
       setGamePhase("question")
       setTimeLeft(15)
       setPlayerAnswer(null)
       setOpponentAnswer(null)
+      setQuestionStartTime(Date.now())
+
+      setCurrentRoom((prev) => {
+        if (!prev) return prev
+        const updatedPlayers = prev.players.map((p) => ({
+          ...p,
+          hasAnswered: false,
+          currentAnswer: null,
+          answerTime: null,
+        }))
+        return { ...prev, players: updatedPlayers }
+      })
+    }
+  }
+
+  const submitAnswer = (answerIndex) => {
+    if (playerAnswer !== null) return
+
+    const answerTime = Date.now()
+    setPlayerAnswer(answerIndex)
+
+    if (currentRoom && questionStartTime) {
+      const currentQ = currentRoom.questions[currentRoom.currentQuestion]
+      const isCorrect = answerIndex === currentQ.correctAnswer
+      const timeTaken = answerTime - questionStartTime
+      const timeBonus = Math.max(0, Math.floor((15000 - timeTaken) / 300))
+      const points = isCorrect ? 100 + timeBonus : 0
+
+      setCurrentRoom((prev) => {
+        if (!prev) return prev
+        const updatedPlayers = prev.players.map((p) =>
+          p.id === user?.id
+            ? {
+                ...p,
+                score: p.score + points,
+                hasAnswered: true,
+                currentAnswer: answerIndex,
+                answerTime: answerTime,
+              }
+            : p,
+        )
+        return { ...prev, players: updatedPlayers }
+      })
+
+      sendMessage("answer_submitted", {
+        roomId: currentRoom.id,
+        questionId: currentQ.id,
+        answer: answerIndex,
+        timeTaken,
+        isCorrect,
+        points,
+      })
+
+      if (isCorrect) {
+        showToast("Correct! 🎉", `+${points} points (${timeBonus} time bonus)`, "success")
+      } else if (answerIndex === -1) {
+        showToast("Time's Up! ⏰", "No answer submitted", "warning")
+      } else {
+        showToast("Incorrect 😔", "Better luck next time!", "error")
+      }
     }
   }
 
   const nextQuestion = () => {
-    const nextIndex = currentQuestionIndex + 1
-    if (nextIndex < questions.length) {
-      setCurrentQuestionIndex(nextIndex)
-      setCurrentQuestion(questions[nextIndex])
-      setGamePhase("question")
-      setTimeLeft(15)
-      setPlayerAnswer(null)
-      setOpponentAnswer(null)
-
-      
-      if (currentRoom) {
-        setCurrentRoom({
-          ...currentRoom,
-          current_question: nextIndex,
-        })
-      }
+    if (currentRoom && currentRoom.currentQuestion < currentRoom.questions.length - 1) {
+      setCurrentRoom((prev) => (prev ? { ...prev, currentQuestion: prev.currentQuestion + 1 } : prev))
+      setGamePhase("countdown")
+      setTimeLeft(2)
     } else {
-      setGamePhase("finished")
+      finishGame()
     }
   }
 
-  const submitAnswer = async (answer) => {
-    if (!currentRoom || !currentQuestion || !user) return
+  const finishGame = () => {
+    setGamePhase("finished")
+    setCurrentRoom((prev) => (prev ? { ...prev, status: "finished" } : prev))
 
-    try {
-      setPlayerAnswer(answer)
-      setGamePhase("answer")
+    if (currentRoom) {
+      const userPlayer = currentRoom.players.find((p) => p.id === user?.id)
+      const opponent = currentRoom.players.find((p) => p.id !== user?.id)
+      const isWinner = (userPlayer?.score || 0) > (opponent?.score || 0)
 
-      const response = await gameService.submitAnswer({
-        roomId: currentRoom.id,
-        questionId: currentQuestion.id,
-        answer,
-        timeTaken: (15 - timeLeft) * 1000,
-      })
-
-      if (response.success && response.isCorrect) {
-        
-        setCurrentRoom((prev) => ({
-          ...prev,
-          player1_score: prev.player1_score + 1,
-        }))
-      }
-    } catch (error) {
-      console.error("Submit answer error:", error)
+      showToast(
+        "Game Finished!",
+        isWinner ? "Congratulations! You won! 🏆" : "Good game! Better luck next time! 💪",
+        isWinner ? "success" : "info",
+      )
     }
   }
 
   const leaveRoom = () => {
-    setCurrentRoom(null)
-    setCurrentQuestion(null)
-    setQuestions([])
-    setOpponent(null)
-    setGamePhase("waiting")
-    setPlayerAnswer(null)
-    setOpponentAnswer(null)
-    setTimeLeft(15)
-    setCurrentQuestionIndex(0)
+    if (currentRoom) {
+      socketLeaveRoom(currentRoom.id)
+      setCurrentRoom(null)
+      setGamePhase("lobby")
+      setPlayerAnswer(null)
+      setOpponentAnswer(null)
+      setTimeLeft(15)
+      setQuestionStartTime(null)
+    }
   }
 
   return (
     <GameContext.Provider
       value={{
         currentRoom,
-        currentQuestion,
-        questions,
-        opponent,
+        isSearching,
         timeLeft,
         gamePhase,
         playerAnswer,
         opponentAnswer,
+        questionStartTime,
         createRoom,
         joinRoom,
+        findMatch,
         submitAnswer,
         leaveRoom,
+        startGame,
       }}
     >
       {children}

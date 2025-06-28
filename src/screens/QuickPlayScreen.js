@@ -21,9 +21,13 @@ export default function QuickPlayScreen({ navigation }) {
   const [gamePin, setGamePin] = useState("")
   const [playerName, setPlayerName] = useState("")
   const [loading, setLoading] = useState(false)
-  const [step, setStep] = useState(1) 
 
-  // Animation 
+
+
+  const [step, setStep] = useState(1)
+
+
+  
   const pulseAnim = useRef(new Animated.Value(1)).current
   const shakeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(0)).current
@@ -31,7 +35,6 @@ export default function QuickPlayScreen({ navigation }) {
   const rotateAnim = useRef(new Animated.Value(0)).current
   const fadeAnim = useRef(new Animated.Value(0)).current
 
-  // Floating animation
   const [particles] = useState(
     Array.from({ length: 15 }, (_, i) => ({
       id: i,
@@ -51,7 +54,7 @@ export default function QuickPlayScreen({ navigation }) {
   ).current
 
   useEffect(() => {
-    // Start entrance animations
+    
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -66,7 +69,7 @@ export default function QuickPlayScreen({ navigation }) {
       }),
     ]).start()
 
-    // Start continuous pulse animation
+    
     const pulseAnimation = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -83,7 +86,7 @@ export default function QuickPlayScreen({ navigation }) {
     )
     pulseAnimation.start()
 
-    // Start rotation animation
+    
     const rotateAnimation = Animated.loop(
       Animated.timing(rotateAnim, {
         toValue: 1,
@@ -93,7 +96,6 @@ export default function QuickPlayScreen({ navigation }) {
     )
     rotateAnimation.start()
 
-    // Animate floating 
     particles.forEach((particle, index) => {
       const animateParticle = () => {
         Animated.parallel([
@@ -160,10 +162,8 @@ export default function QuickPlayScreen({ navigation }) {
     setLoading(true)
     setStep(3)
 
-    // joining quiz
     setTimeout(() => {
       setLoading(false)
-      // Navigate to battle screen
       Alert.alert("Success!", `Welcome ${playerName}! Joining game ${gamePin}...`, [
         { text: "OK", onPress: () => navigation.navigate("Dashboard") },
       ])
@@ -192,7 +192,6 @@ export default function QuickPlayScreen({ navigation }) {
 
   return (
     <LinearGradient colors={["#667eea", "#764ba2", "#f093fb"]} style={styles.container}>
-      {/* Animated Background  */}
       {particles.map((particle, index) => (
         <Animated.View
           key={particle.id}
@@ -212,7 +211,7 @@ export default function QuickPlayScreen({ navigation }) {
         </Animated.View>
       ))}
 
-      {/* Rotating Background */}
+      
       <Animated.View style={[styles.rotatingElement, styles.element1, { transform: [{ rotate: spin }] }]}>
         <LinearGradient colors={["#ff9a9e20", "#fecfef20"]} style={styles.elementGradient} />
       </Animated.View>
@@ -244,7 +243,6 @@ export default function QuickPlayScreen({ navigation }) {
             <Text style={styles.subtitle}>Jump into any quiz instantly!</Text>
           </Animatable.View>
 
-          {/* Step 1: Enter Quiz PIN */}
           {step === 1 && (
             <Animatable.View animation="fadeInUp" style={styles.stepContainer}>
               <View style={styles.card}>
@@ -288,7 +286,7 @@ export default function QuickPlayScreen({ navigation }) {
             </Animatable.View>
           )}
 
-          {/* Step 2: Enter Player Name */}
+          
           {step === 2 && (
             <Animatable.View animation="slideInRight" style={styles.stepContainer}>
               <View style={styles.card}>
@@ -343,7 +341,7 @@ export default function QuickPlayScreen({ navigation }) {
             </Animatable.View>
           )}
 
-          {/* Step 3: Joining Game */}
+          
           {step === 3 && (
             <Animatable.View animation="zoomIn" style={styles.stepContainer}>
               <View style={styles.loadingCard}>
@@ -384,7 +382,7 @@ export default function QuickPlayScreen({ navigation }) {
             </Animatable.View>
           )}
 
-          {/*Did you know*/}
+          
           {step !== 3 && (
             <Animatable.View animation="fadeInUp" delay={1000} style={styles.funFactsContainer}>
               <Text style={styles.funFactsTitle}>💡 Did you know?</Text>
@@ -393,7 +391,6 @@ export default function QuickPlayScreen({ navigation }) {
           )}
         </Animated.View>
 
-        {/* Bottom Navigation */}
         {step === 1 && (
           <Animatable.View animation="fadeInUp" delay={1200} style={styles.bottomNav}>
             <TouchableOpacity style={styles.bottomNavButton} onPress={() => navigation.navigate("AuthLogin")}>

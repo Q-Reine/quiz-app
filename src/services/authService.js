@@ -53,7 +53,6 @@ class AuthService {
     
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    // Check if user already exists
     const existingUser = this.users.find((u) => u.email === email || u.username === username)
     if (existingUser) {
       return {
@@ -62,7 +61,6 @@ class AuthService {
       }
     }
 
-    // Create new user
     const newUser = {
       id: Date.now(),
       username,
@@ -102,7 +100,7 @@ class AuthService {
   }
 
   async updateProfile(profileData) {
-    // Simulate network delay
+    
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
     const token = await AsyncStorage.getItem("authToken")
@@ -130,7 +128,7 @@ class AuthService {
   }
 
   async googleAuth(userInfo) {
-    // Simulate network delay
+    
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
     const newUser = {

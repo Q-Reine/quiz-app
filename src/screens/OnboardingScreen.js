@@ -65,7 +65,6 @@ export default function OnboardingScreen({ navigation }) {
   const scaleAnim = useRef(new Animated.Value(1)).current
   const rotateAnim = useRef(new Animated.Value(0)).current
 
-  // Floating animation
   const [floatingElements] = useState(
     Array.from({ length: 20 }, (_, i) => ({
       id: i,
@@ -86,7 +85,7 @@ export default function OnboardingScreen({ navigation }) {
   ).current
 
   useEffect(() => {
-    // Start floating animations
+    // floating animations
     floatingElements.forEach((element, index) => {
       const animateFloat = () => {
         Animated.parallel([
@@ -147,8 +146,7 @@ export default function OnboardingScreen({ navigation }) {
     if (currentIndex < onboardingData.length - 1) {
       animateTransition(() => setCurrentIndex(currentIndex + 1))
     } else {
-      // Navigate to next slide
-      navigation.replace("AuthFlow")
+      navigation.navigate("QuickPlay")
     }
   }
 
@@ -189,7 +187,7 @@ export default function OnboardingScreen({ navigation }) {
   }
 
   const skipOnboarding = () => {
-    navigation.replace("AuthFlow")
+    navigation.navigate("QuickPlay")
   }
 
   const currentSlide = onboardingData[currentIndex]
@@ -202,7 +200,7 @@ export default function OnboardingScreen({ navigation }) {
     <LinearGradient colors={currentSlide.gradient} style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={currentSlide.accentColor} />
 
-      {/* Floating Background Elements */}
+      
       {floatingElements.map((element, index) => (
         <Animated.View
           key={element.id}
@@ -222,7 +220,7 @@ export default function OnboardingScreen({ navigation }) {
         </Animated.View>
       ))}
 
-      {/* Rotating Background Circles */}
+      
       <Animated.View style={[styles.rotatingCircle, styles.circle1, { transform: [{ rotate: spin }] }]}>
         <LinearGradient colors={["rgba(255,255,255,0.1)", "transparent"]} style={styles.circleGradient} />
       </Animated.View>
@@ -231,13 +229,14 @@ export default function OnboardingScreen({ navigation }) {
       </Animated.View>
 
       <SafeAreaView style={styles.safeArea}>
+        
         <View style={styles.header}>
           <TouchableOpacity style={styles.skipButton} onPress={skipOnboarding}>
             <Text style={styles.skipText}>Skip</Text>
           </TouchableOpacity>
         </View>
 
-        
+        {/* Content */}
         <Animated.View
           style={[
             styles.content,
@@ -270,7 +269,7 @@ export default function OnboardingScreen({ navigation }) {
             <Text style={styles.description}>{currentSlide.description}</Text>
           </Animatable.View>
 
-         
+          
           <Animatable.View animation="fadeInUp" delay={600} style={styles.featuresContainer}>
             {currentSlide.features.map((feature, index) => (
               <Animatable.View key={index} animation="fadeInLeft" delay={800 + index * 200} style={styles.featureItem}>
@@ -281,9 +280,8 @@ export default function OnboardingScreen({ navigation }) {
           </Animatable.View>
         </Animated.View>
 
-        {/* Bottom Section */}
+        
         <View style={styles.bottomSection}>
-          {/* Page Indicators */}
           <View style={styles.indicatorContainer}>
             {onboardingData.map((_, index) => (
               <Animatable.View
@@ -301,7 +299,6 @@ export default function OnboardingScreen({ navigation }) {
             ))}
           </View>
 
-          {/* Navigation Buttons */}
           <View style={styles.navigationContainer}>
             {currentIndex > 0 && (
               <TouchableOpacity style={styles.prevButton} onPress={prevSlide}>
