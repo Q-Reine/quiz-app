@@ -1,421 +1,160 @@
-import { createContext, useContext, useEffect, useState } from "react"
-import { useSocket } from "./SocketContext"
-import { useAuth } from "./AuthContext"
-import { useToast } from "./ToastContext"
+import React, { createContext, useContext, useState } from "react";
+import { useSocket } from "./SocketContext";
+import { useAuth } from "./AuthContext";
+import api from '../services/api';
 
-const GameContext = createContext(undefined)
-
-const mockQuestions = [
-  {
-    id: "q1",
-    question: "What is the capital of Australia?",
-    options: ["Sydney", "Melbourne", "Canberra", "Perth"],
-    correctAnswer: 2,
-    category: "Geography",
-    difficulty: "medium",
-    timeLimit: 15,
-  },
-  {
-    id: "q2",
-    question: "What is the chemical symbol for gold?",
-    options: ["Go", "Au", "Ag", "Gd"],
-    correctAnswer: 1,
-    category: "Science",
-    difficulty: "medium",
-    timeLimit: 15,
-  },
-  {
-    id: "q3",
-    question: "Who painted the Mona Lisa?",
-    options: ["Van Gogh", "Picasso", "Da Vinci", "Monet"],
-    correctAnswer: 2,
-    category: "Art",
-    difficulty: "easy",
-    timeLimit: 15,
-  },
-  {
-    id: "q4",
-    question: "What is the largest planet in our solar system?",
-    options: ["Earth", "Jupiter", "Saturn", "Mars"],
-    correctAnswer: 1,
-    category: "Science",
-    difficulty: "easy",
-    timeLimit: 15,
-  },
-  {
-    id: "q5",
-    question: "In which year did World War II end?",
-    options: ["1944", "1945", "1946", "1947"],
-    correctAnswer: 1,
-    category: "History",
-    difficulty: "medium",
-    timeLimit: 15,
-  },
-]
+const GameContext = createContext(undefined);
 
 export function GameProvider({ children }) {
-  const [currentRoom, setCurrentRoom] = useState(null)
-  const [isSearching, setIsSearching] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(15)
-  const [gamePhase, setGamePhase] = useState("lobby")
-  const [playerAnswer, setPlayerAnswer] = useState(null)
-  const [opponentAnswer, setOpponentAnswer] = useState(null)
-  const [questionStartTime, setQuestionStartTime] = useState(null)
+    const [gameSession, setGameSession] = useState(null);
+    const [players, setPlayers] = useState([]);
+    const [currentQuestion, setCurrentQuestion] = useState(null);
+    const [gamePhase, setGamePhase] = useState("lobby"); // Default to lobby
+    const [leaderboard, setLeaderboard] = useState([]);
+    const [answerResult, setAnswerResult] = useState(null);
 
-  const { user } = useAuth()
-  const { sendMessage, onMessage, joinRoom: socketJoinRoom, leaveRoom: socketLeaveRoom } = useSocket()
-  const { showToast } = useToast()
+    const { socket } = useSocket();
+    const { user } = useAuth();
 
-  // Timer effects
-  useEffect(() => {
-    if (gamePhase === "question" && timeLeft > 0 && playerAnswer === null) {
-      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000)
-      return () => clearTimeout(timer)
-    } else if (timeLeft === 0 && gamePhase === "question" && playerAnswer === null) {
-      submitAnswer(-1)
-    }
-  }, [timeLeft, gamePhase, playerAnswer])
-
-  useEffect(() => {
-    if (gamePhase === "countdown" && timeLeft > 0) {
-      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000)
-      return () => clearTimeout(timer)
-    } else if (timeLeft === 0 && gamePhase === "countdown") {
-      startNextQuestion()
-    }
-  }, [timeLeft, gamePhase])
-
-  // Simulate opponent answers
-  useEffect(() => {
-    if (gamePhase === "question" && playerAnswer !== null && opponentAnswer === null && currentRoom) {
-      const opponentDelay = Math.random() * 8000 + 2000
-      const timer = setTimeout(() => {
-        const randomAnswer = Math.floor(Math.random() * 4)
-        setOpponentAnswer(randomAnswer)
-
-        setCurrentRoom((prev) => {
-          if (!prev) return prev
-          const updatedPlayers = prev.players.map((p) =>
-            p.id !== user?.id ? { ...p, hasAnswered: true, currentAnswer: randomAnswer, answerTime: Date.now() } : p,
-          )
-          return { ...prev, players: updatedPlayers }
-        })
-
-        setTimeout(() => {
-          setGamePhase("results")
-          setTimeout(() => {
-            if (currentRoom.currentQuestion < currentRoom.questions.length - 1) {
-              nextQuestion()
-            } else {
-              finishGame()
+    /**
+     * Creates the game session via an API call and immediately has the host join the socket room.
+     * The backend creates the GameSession and the host as the first Player.
+     * The frontend then uses the returned PIN to join the socket room, identifying itself as the host.
+     */
+    const createGameSessionAPI = (quizId) => {
+        return new Promise(async (resolve, reject) => {
+            if (!user || !socket) {
+                const errorMessage = !user ? "User not logged in." : "Socket not connected.";
+                return reject(new Error(errorMessage));
             }
-          }, 3000)
-        }, 500)
-      }, opponentDelay)
 
-      return () => clearTimeout(timer)
-    }
-  }, [gamePhase, playerAnswer, opponentAnswer, currentRoom, user])
+            try {
+                // Step 1: Create the game session via API. Backend creates the GameSession and a Player record for the host.
+                const response = await api.post(`/games/${quizId}/start`);
+                const { pin } = response.data;
 
-  // Socket listeners
-  useEffect(() => {
-    onMessage("match_found", (data) => {
-      setIsSearching(false)
-      const room = {
-        id: data.roomId,
-        code: data.roomCode || "",
-        players: [
-          {
-            id: user.id,
-            username: user.username,
-            avatar: user.avatar,
-            eloRating: user.eloRating,
-            score: 0,
-            isReady: true,
-            hasAnswered: false,
-            currentAnswer: null,
-            answerTime: null,
-          },
-          {
-            id: data.opponent.id,
-            username: data.opponent.username,
-            avatar: data.opponent.avatar,
-            eloRating: data.opponent.eloRating,
-            score: 0,
-            isReady: true,
-            hasAnswered: false,
-            currentAnswer: null,
-            answerTime: null,
-          },
-        ],
-        currentQuestion: 0,
-        questions: mockQuestions.slice(0, 5),
-        status: "waiting",
-        category: data.category || "Mixed",
-        difficulty: data.difficulty || "medium",
-        maxPlayers: 2,
-        startTime: null,
-      }
-      setCurrentRoom(room)
-      socketJoinRoom(data.roomId)
+                // Step 2: Immediately have this socket join the room as the identified host player.
+                // --- THIS IS THE CRITICAL FIX ---
+                // We send the nickname along with the PIN so the backend can find the
+                // corresponding Player record and associate it with this socket connection.
+                socket.emit('player_join_room', {
+                    pin: pin,
+                    nickname: user.name // Assumes user.name is the nickname used to create the player on the backend
+                });
+                // --- END OF FIX ---
 
-      showToast("Match Found!", `You're matched with ${data.opponent.username}`, "success")
+                // Step 3: Update local state to reflect being in a game session.
+                setGameSession({ pin });
+                setGamePhase('lobby'); // The host is now in the lobby
+                
+                resolve(pin); // Resolve with the PIN so the UI can navigate to the lobby screen
+            } catch (error) {
+                const msg = error.response?.data?.message || "Failed to create game session.";
+                reject(new Error(msg));
+            }
+        });
+    };
 
-      setTimeout(() => {
-        startGame()
-      }, 3000)
-    })
-  }, [user])
+    /**
+     * Allows a non-host player to join an existing game using a PIN and nickname.
+     */
+    const joinGameSession = (pin, nickname, callback) => {
+        if (!socket) {
+            return callback({ success: false, message: "Connection error." });
+        }
 
-  const createRoom = async (category, difficulty) => {
-    try {
-      if (!user) return null
+        socket.emit('player_join', { pin, nickname }, (response) => {
+            if (response.success) {
+                setGameSession({ pin }); 
+                setGamePhase('lobby');
+            }
+            callback(response);
+        });
+    };
 
-      const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase()
-      const room = {
-        id: `room_${Date.now()}`,
-        code: roomCode,
-        players: [
-          {
-            id: user.id,
-            username: user.username,
-            avatar: user.avatar,
-            eloRating: user.eloRating,
-            score: 0,
-            isReady: true,
-            hasAnswered: false,
-            currentAnswer: null,
-            answerTime: null,
-          },
-        ],
-        currentQuestion: 0,
-        questions: mockQuestions.slice(0, 5),
-        status: "waiting",
-        category,
-        difficulty,
-        maxPlayers: 2,
-        startTime: null,
-      }
+    /**
+     * Emits the event for the host to start the game.
+     */
+    const startGame = () => {
+        if (socket && gameSession?.pin) {
+            socket.emit('start_game', { pin: gameSession.pin });
+        }
+    };
 
-      setCurrentRoom(room)
-      socketJoinRoom(room.id)
+    /**
+     * Handles answer submission to the backend.
+     */
+    const submitAnswer = (optionId) => {
+        if (socket && gameSession?.pin && currentQuestion?.id) {
+            const payload = {
+                pin: gameSession.pin,
+                questionId: currentQuestion.id,
+                optionId
+            };
+            console.log('[FRONTEND-SEND] Submitting answer:', payload);
+            socket.emit('submit_answer', payload);
+        }
+    };
 
-      showToast("Room Created!", `Room code: ${roomCode}`, "success")
-      return roomCode
-    } catch (error) {
-      showToast("Failed to Create Room", "Please try again", "error")
-      return null
-    }
-  }
+    /**
+     * Resets all game-related state. Called when leaving a lobby or finishing a game.
+     */
+    const leaveGame = () => {
+        if (socket && gameSession?.pin) {
+            socket.emit('leave_game', { pin: gameSession.pin });
+        }
+        console.log('Leaving game - resetting all local state');
+        setGameSession(null);
+        setPlayers([]);
+        setCurrentQuestion(null);
+        setGamePhase('lobby'); // Reset to default state
+        setLeaderboard([]);
+        setAnswerResult(null);
+    };
 
-  const joinRoom = async (code) => {
-    try {
-      if (!user) return false
-
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      const room = {
-        id: `room_${Date.now()}`,
-        code: code,
-        players: [
-          {
-            id: "host_user",
-            username: "RoomHost",
-            avatar: "🎯",
-            eloRating: 1400,
-            score: 0,
-            isReady: true,
-            hasAnswered: false,
-            currentAnswer: null,
-            answerTime: null,
-          },
-          {
-            id: user.id,
-            username: user.username,
-            avatar: user.avatar,
-            eloRating: user.eloRating,
-            score: 0,
-            isReady: true,
-            hasAnswered: false,
-            currentAnswer: null,
-            answerTime: null,
-          },
-        ],
-        currentQuestion: 0,
-        questions: mockQuestions.slice(0, 5),
-        status: "waiting",
-        category: "Mixed",
-        difficulty: "medium",
-        maxPlayers: 2,
-        startTime: null,
-      }
-
-      setCurrentRoom(room)
-      socketJoinRoom(room.id)
-
-      showToast("Joined Room!", `Welcome to ${code}`, "success")
-
-      setTimeout(() => {
-        startGame()
-      }, 2000)
-
-      return true
-    } catch (error) {
-      showToast("Failed to Join Room", "Room not found or full", "error")
-      return false
-    }
-  }
-
-  const findMatch = async (category, difficulty) => {
-    setIsSearching(true)
-    sendMessage("find_match", { category, difficulty })
-    showToast("Searching for Match", "Finding an opponent...", "info")
-  }
-
-  const startGame = () => {
-    if (currentRoom && currentRoom.players.length === 2) {
-      setCurrentRoom((prev) => (prev ? { ...prev, status: "playing", startTime: Date.now() } : prev))
-      setGamePhase("countdown")
-      setTimeLeft(3)
-      showToast("Game Starting!", "Get ready for the first question", "info")
-    }
-  }
-
-  const startNextQuestion = () => {
-    if (currentRoom) {
-      setGamePhase("question")
-      setTimeLeft(15)
-      setPlayerAnswer(null)
-      setOpponentAnswer(null)
-      setQuestionStartTime(Date.now())
-
-      setCurrentRoom((prev) => {
-        if (!prev) return prev
-        const updatedPlayers = prev.players.map((p) => ({
-          ...p,
-          hasAnswered: false,
-          currentAnswer: null,
-          answerTime: null,
-        }))
-        return { ...prev, players: updatedPlayers }
-      })
-    }
-  }
-
-  const submitAnswer = (answerIndex) => {
-    if (playerAnswer !== null) return
-
-    const answerTime = Date.now()
-    setPlayerAnswer(answerIndex)
-
-    if (currentRoom && questionStartTime) {
-      const currentQ = currentRoom.questions[currentRoom.currentQuestion]
-      const isCorrect = answerIndex === currentQ.correctAnswer
-      const timeTaken = answerTime - questionStartTime
-      const timeBonus = Math.max(0, Math.floor((15000 - timeTaken) / 300))
-      const points = isCorrect ? 100 + timeBonus : 0
-
-      setCurrentRoom((prev) => {
-        if (!prev) return prev
-        const updatedPlayers = prev.players.map((p) =>
-          p.id === user?.id
-            ? {
-                ...p,
-                score: p.score + points,
-                hasAnswered: true,
-                currentAnswer: answerIndex,
-                answerTime: answerTime,
-              }
-            : p,
-        )
-        return { ...prev, players: updatedPlayers }
-      })
-
-      sendMessage("answer_submitted", {
-        roomId: currentRoom.id,
-        questionId: currentQ.id,
-        answer: answerIndex,
-        timeTaken,
-        isCorrect,
-        points,
-      })
-
-      if (isCorrect) {
-        showToast("Correct! 🎉", `+${points} points (${timeBonus} time bonus)`, "success")
-      } else if (answerIndex === -1) {
-        showToast("Time's Up! ⏰", "No answer submitted", "warning")
-      } else {
-        showToast("Incorrect 😔", "Better luck next time!", "error")
-      }
-    }
-  }
-
-  const nextQuestion = () => {
-    if (currentRoom && currentRoom.currentQuestion < currentRoom.questions.length - 1) {
-      setCurrentRoom((prev) => (prev ? { ...prev, currentQuestion: prev.currentQuestion + 1 } : prev))
-      setGamePhase("countdown")
-      setTimeLeft(2)
-    } else {
-      finishGame()
-    }
-  }
-
-  const finishGame = () => {
-    setGamePhase("finished")
-    setCurrentRoom((prev) => (prev ? { ...prev, status: "finished" } : prev))
-
-    if (currentRoom) {
-      const userPlayer = currentRoom.players.find((p) => p.id === user?.id)
-      const opponent = currentRoom.players.find((p) => p.id !== user?.id)
-      const isWinner = (userPlayer?.score || 0) > (opponent?.score || 0)
-
-      showToast(
-        "Game Finished!",
-        isWinner ? "Congratulations! You won! 🏆" : "Good game! Better luck next time! 💪",
-        isWinner ? "success" : "info",
-      )
-    }
-  }
-
-  const leaveRoom = () => {
-    if (currentRoom) {
-      socketLeaveRoom(currentRoom.id)
-      setCurrentRoom(null)
-      setGamePhase("lobby")
-      setPlayerAnswer(null)
-      setOpponentAnswer(null)
-      setTimeLeft(15)
-      setQuestionStartTime(null)
-    }
-  }
-
-  return (
-    <GameContext.Provider
-      value={{
-        currentRoom,
-        isSearching,
-        timeLeft,
+    const value = {
+        // State
+        gameSession,
+        players,
+        currentQuestion,
         gamePhase,
-        playerAnswer,
-        opponentAnswer,
-        questionStartTime,
-        createRoom,
-        joinRoom,
-        findMatch,
-        submitAnswer,
-        leaveRoom,
+        leaderboard,
+        answerResult,
+
+        // Setters (for direct state management from components)
+        setGameSession,
+        setPlayers,
+        setCurrentQuestion,
+        setGamePhase,
+        setLeaderboard,
+        setAnswerResult,
+
+        // Actions
+        createGameSessionAPI,
+        joinGameSession,
         startGame,
-      }}
-    >
-      {children}
-    </GameContext.Provider>
-  )
+        submitAnswer,
+        leaveGame,
+
+        // The following functions were removed as they were either redundant
+        // or their logic is better handled directly within components (like handling socket events).
+        // - updatePlayerScore (player list is updated authoritatively by the server)
+        // - updatePlayersList (use setPlayers directly)
+        // - handleNewQuestion (handled in GameBattleScreen)
+        // - handleAnswerResult (handled in GameBattleScreen)
+    };
+
+    return (
+        <GameContext.Provider value={value}>
+            {children}
+        </GameContext.Provider>
+    );
 }
 
 export function useGame() {
-  const context = useContext(GameContext)
-  if (!context) {
-    throw new Error("useGame must be used within a GameProvider")
-  }
-  return context
+    const context = useContext(GameContext);
+    if (context === undefined) {
+        throw new Error("useGame must be used within a GameProvider");
+    }
+    return context;
 }

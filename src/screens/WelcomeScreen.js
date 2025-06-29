@@ -1,16 +1,34 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions } from "react-native"
-import { LinearGradient } from "expo-linear-gradient"
-import { useNavigation } from "@react-navigation/native"
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { useNavigation } from "@react-navigation/native";
+import { useAuth } from "../contexts/AuthContext";
 
-const { width, height } = Dimensions.get("window")
+const { width, height } = Dimensions.get("window");
 
 export default function WelcomeScreen() {
-  const navigation = useNavigation()
+  const navigation = useNavigation();
+  const { user } = useAuth();
+
+  const handleQuickPlay = () => {
+    if (user) {
+      navigation.navigate("QuickPlay");
+    } else {
+      navigation.navigate("Auth", { 
+        screen: "Login",
+        params: { nextScreen: "QuickPlay" }
+      });
+    }
+  };
+
+ const handleGetStarted = () => {
+  navigation.navigate("Auth");
+};
+
+  
 
   return (
     <LinearGradient colors={["#8B5CF6", "#3B82F6", "#EC4899"]} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
         <View style={styles.backgroundElements}>
           <View style={[styles.floatingElement, styles.element1]} />
           <View style={[styles.floatingElement, styles.element2]} />
@@ -63,21 +81,28 @@ export default function WelcomeScreen() {
         </View>
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={() => navigation.navigate("Auth")}>
-            <LinearGradient colors={["#10B981", "#3B82F6"]} style={styles.buttonGradient}>
-              <Text style={styles.buttonText}>Get Started</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+  <TouchableOpacity 
+    style={[styles.button, styles.primaryButton]} 
+    onPress={handleGetStarted}
+  >
+    <LinearGradient colors={["#10B981", "#3B82F6"]} style={styles.buttonGradient}>
+      <Text style={styles.buttonText}>Get Started</Text>
+    </LinearGradient>
+  </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => navigation.navigate("Auth")}>
-            <Text style={styles.secondaryButtonText}>Quick Play</Text>
-          </TouchableOpacity>
-        </View>
+  <TouchableOpacity 
+    style={[styles.button, styles.secondaryButton]} 
+    onPress={handleQuickPlay}
+  >
+    <Text style={styles.secondaryButtonText}>Quick Play</Text>
+  </TouchableOpacity>
+</View>
+
 
         <Text style={styles.footerText}>Join millions of quiz enthusiasts worldwide</Text>
       </ScrollView>
     </LinearGradient>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -235,4 +260,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
   },
-})
+});

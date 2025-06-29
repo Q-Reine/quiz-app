@@ -78,8 +78,9 @@ const AppNavigator = () => {
     >
       
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
-      <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       <Stack.Screen name="QuickPlay" component={QuickPlayScreen} />
+      <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+      
 
       <Stack.Screen name="Auth" component={AuthScreen} />
 

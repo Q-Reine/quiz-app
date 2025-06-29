@@ -1,137 +1,120 @@
-import { createContext, useContext, useEffect, useState } from "react"
-import AsyncStorage from "@react-native-async-storage/async-storage"
-import { useToast } from "./ToastContext"
+import { createContext, useContext, useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useToast } from "./ToastContext";
+import api from '../services/api'; // <-- Import our new api service
 
-const AuthContext = createContext(undefined)
+const AuthContext = createContext(undefined);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const { showToast } = useToast()
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const { showToast } = useToast();
 
   useEffect(() => {
-    checkAuthState()
-  }, [])
+    checkAuthState();
+  }, []);
 
   const checkAuthState = async () => {
     try {
-      const token = await AsyncStorage.getItem("authToken")
-      if (token) {
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+      const storedToken = await AsyncStorage.getItem("authToken");
+      const storedUser = await AsyncStorage.getItem("user");
 
-        const mockUser = {
-          id: "user_1",
-          username: "TestUser",
-          email: "test@example.com",
-          avatar: "🎮",
-          eloRating: 1250,
-          totalGames: 15,
-          wins: 9,
-          losses: 6,
-          isOnline: true,
-          lastSeen: new Date(),
-        }
-        setUser(mockUser)
+      if (storedToken && storedUser) {
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
+        // Optional: You could add an API call here to verify the token is still valid
+        // e.g., api.get('/auth/me').catch(() => logout());
       }
     } catch (error) {
-      console.error("Auth check failed:", error)
-      await AsyncStorage.removeItem("authToken")
+      console.error("Auth check failed:", error);
+      await logout(); // Clear storage if something is wrong
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const login = async (email, password) => {
     try {
-      setLoading(true)
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      setLoading(true);
+      const response = await api.post('/auth/login', { email, password });
 
-      if (email === "test@example.com" && password === "password") {
-        const mockUser = {
-          id: "user_1",
-          username: "TestUser",
-          email: email,
-          avatar: "🎮",
-          eloRating: 1250,
-          totalGames: 15,
-          wins: 9,
-          losses: 6,
-          isOnline: true,
-          lastSeen: new Date(),
-        }
+      if (response.data.success) {
+        const { token, user: userData } = response.data;
+        
+        await AsyncStorage.setItem("authToken", token);
+        await AsyncStorage.setItem("user", JSON.stringify(userData));
 
-        await AsyncStorage.setItem("authToken", "mock_token_123")
-        setUser(mockUser)
-
-        showToast("Welcome back!", `Hello ${mockUser.username}`, "success")
-        return true
+        setToken(token);
+        setUser(userData);
+        
+        showToast("Welcome back!", `Hello ${userData.name}`, "success");
+        return true;
       } else {
-        showToast("Login Failed", "Invalid credentials", "error")
-        return false
+        showToast("Login Failed", response.data.message || "Invalid credentials", "error");
+        return false;
       }
     } catch (error) {
-      showToast("Login Failed", "Please try again", "error")
-      return false
+      const message = error.response?.data?.message || "An error occurred. Please try again.";
+      showToast("Login Failed", message, "error");
+      return false;
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const register = async (username, email, password) => {
+  const register = async (name, email, password) => {
     try {
-      setLoading(true)
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      const mockUser = {
-        id: `user_${Date.now()}`,
-        username,
-        email,
-        avatar: "🎮",
-        eloRating: 1200,
-        totalGames: 0,
-        wins: 0,
-        losses: 0,
-        isOnline: true,
-        lastSeen: new Date(),
+      setLoading(true);
+      const response = await api.post('/auth/register', { name, email, password });
+      
+      if (response.data.success) {
+        showToast("Account Created!", "Please check your email to verify your account.", "success");
+    
+        return true;
+      } else {
+        showToast("Registration Failed", response.data.message || "Could not create account.", "error");
+        return false;
       }
-
-      await AsyncStorage.setItem("authToken", "mock_token_123")
-      setUser(mockUser)
-
-      showToast("Account Created!", `Welcome to QuizBattle, ${username}!`, "success")
-      return true
     } catch (error) {
-      showToast("Registration Failed", "Please try again", "error")
-      return false
+      const message = error.response?.data?.message || "An error occurred. Please try again.";
+      showToast("Registration Failed", message, "error");
+      return false;
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const logout = async () => {
-    await AsyncStorage.removeItem("authToken")
-    setUser(null)
-    showToast("Logged Out", "See you next time!", "info")
-  }
+    await AsyncStorage.removeItem("authToken");
+    await AsyncStorage.removeItem("user");
+    setUser(null);
+    setToken(null);
+    showToast("Logged Out", "See you next time!", "info");
+  };
 
   const updateProfile = async (data) => {
+   
     try {
       if (user) {
-        setUser({ ...user, ...data })
-        showToast("Profile Updated", "Your changes have been saved", "success")
-        return true
+        const updatedUser = { ...user, ...data };
+        setUser(updatedUser);
+        await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
+        showToast("Profile Updated", "Your changes have been saved", "success");
+        return true;
       }
-      return false
+      return false;
     } catch (error) {
-      showToast("Update Failed", "Please try again", "error")
-      return false
+      showToast("Update Failed", "Please try again", "error");
+      return false;
     }
-  }
+  };
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        token,
         loading,
         login,
         register,
@@ -141,13 +124,13 @@ export function AuthProvider({ children }) {
     >
       {children}
     </AuthContext.Provider>
-  )
+  );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
   if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider")
+    throw new Error("useAuth must be used within an AuthProvider");
   }
-  return context
+  return context;
 }

@@ -1,92 +1,76 @@
-import { createContext, useContext, useEffect, useState } from "react"
-import { useAuth } from "./AuthContext"
+// src/contexts/SocketContext.js
+import React, { createContext, useContext, useEffect, useState, useRef } from "react";
+import { io } from "socket.io-client";
+import { useAuth } from "./AuthContext";
 
-const SocketContext = createContext(undefined)
+
+const SOCKET_URL = 'http://172.20.10.4:3000'; 
+
+const SocketContext = createContext(undefined);
 
 export function SocketProvider({ children }) {
-  const [isConnected, setIsConnected] = useState(false)
-  const [onlineUsers, setOnlineUsers] = useState([])
-  const [eventListeners, setEventListeners] = useState(new Map())
-  const { user } = useAuth()
+    
+    const socketRef = useRef(null);
+    const [isConnected, setIsConnected] = useState(false);
+    const { user, token } = useAuth();
 
-  useEffect(() => {
-    if (user) {
-      const timer = setTimeout(() => {
-        setIsConnected(true)
-        setOnlineUsers(["user_1", "user_2", "user_3", "user_4"])
-      }, 1000)
+    useEffect(() => {
+   
+        if (user && token) {
+           
+            if (!socketRef.current) {
+                console.log("[SocketContext] Creating new socket connection...");
+                socketRef.current = io(SOCKET_URL);
 
-      return () => clearTimeout(timer)
-    } else {
-      setIsConnected(false)
-      setOnlineUsers([])
-    }
-  }, [user])
+                socketRef.current.on("connect", () => {
+                    console.log("[SocketContext] Socket connected:", socketRef.current.id);
+                    setIsConnected(true);
+                    if (user) {
+                        socketRef.current.emit('authenticate', user.id);
+                    }
+                });
 
-  const joinRoom = (roomId) => {
-    console.log(`Joining room: ${roomId}`)
-  }
+                socketRef.current.on("disconnect", () => {
+                    console.log("[SocketContext] Socket disconnected.");
+                    setIsConnected(false);
+                });
+            }
+        } else {
+           
+            if (socketRef.current) {
+                console.log("[SocketContext] Disconnecting socket...");
+                socketRef.current.disconnect();
+                socketRef.current = null; // Clean up the ref
+                setIsConnected(false); // Ensure connected state is false
+            }
+        }
+        
+   
+        return () => {
+            if (socketRef.current) {
+                console.log("[SocketContext] Cleaning up socket on provider unmount.");
+                socketRef.current.disconnect();
+                socketRef.current = null;
+            }
+        };
+    }, [user, token]); 
 
-  const leaveRoom = (roomId) => {
-    console.log(`Leaving room: ${roomId}`)
-  }
-
-  const sendMessage = (event, data) => {
-    console.log(`Sending ${event}:`, data)
-
-    setTimeout(
-      () => {
-        const listeners = eventListeners.get(event) || []
-        listeners.forEach((callback) => {
-          if (event === "find_match") {
-            callback({
-              matchFound: true,
-              opponent: {
-                id: "opponent_1",
-                username: "QuizMaster",
-                avatar: "🧠",
-                eloRating: 1300,
-              },
-              roomId: `room_${Date.now()}`,
-            })
-          } else if (event === "answer_submitted") {
-            callback({
-              correct: Math.random() > 0.5,
-              timeBonus: Math.floor(Math.random() * 100),
-            })
-          }
-        })
-      },
-      1000 + Math.random() * 2000,
-    )
-  }
-
-  const onMessage = (event, callback) => {
-    const currentListeners = eventListeners.get(event) || []
-    const newListeners = [...currentListeners, callback]
-    setEventListeners((prev) => new Map(prev.set(event, newListeners)))
-  }
-
-  return (
-    <SocketContext.Provider
-      value={{
+    const contextValue = {
+        socket: socketRef.current,
         isConnected,
-        onlineUsers,
-        joinRoom,
-        leaveRoom,
-        sendMessage,
-        onMessage,
-      }}
-    >
-      {children}
-    </SocketContext.Provider>
-  )
+    };
+
+    return (
+        <SocketContext.Provider value={contextValue}>
+            {children}
+        </SocketContext.Provider>
+    );
 }
 
 export function useSocket() {
-  const context = useContext(SocketContext)
-  if (!context) {
-    throw new Error("useSocket must be used within a SocketProvider")
-  }
-  return context
+    const context = useContext(SocketContext);
+    if (context === undefined) {
+        throw new Error("useSocket must be used within a SocketProvider");
+    }
+    return context;
 }

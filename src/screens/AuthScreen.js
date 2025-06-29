@@ -27,16 +27,20 @@ export default function AuthScreen() {
     }
   }
 
-  const handleRegister = async () => {
+ const handleRegister = async () => {
     if (registerData.password !== registerData.confirmPassword) {
-      alert("Passwords don't match!")
-      return
+      // toast is better than alert
+      // alert("Passwords don't match!"); 
+      return;
     }
-    const success = await register(registerData.username, registerData.email, registerData.password)
+    // The first parameter is `name`, which you call `username` in your state.
+    const success = await register(registerData.username, registerData.email, registerData.password);
     if (success) {
-      navigation.navigate("Dashboard")
+      // Don't navigate to Dashboard. User needs to verify email.
+      // Maybe switch back to the login tab.
+      setIsLogin(true);
     }
-  }
+  };
 
   return (
     <LinearGradient colors={["#8B5CF6", "#3B82F6", "#EC4899"]} style={styles.container}>

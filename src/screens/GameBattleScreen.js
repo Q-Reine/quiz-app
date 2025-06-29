@@ -1,513 +1,474 @@
-import { useEffect, useState } from "react"
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions } from "react-native"
-import { LinearGradient } from "expo-linear-gradient"
-import { useNavigation } from "@react-navigation/native"
-import { useGame } from "../contexts/GameContext"
-import { useAuth } from "../contexts/AuthContext"
-
-const { width } = Dimensions.get("window")
+import React, { useEffect, useState, useRef } from "react";
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  ScrollView, 
+  ActivityIndicator, 
+  Animated 
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { useNavigation, useIsFocused } from "@react-navigation/native";
+import { useSocket } from "../contexts/SocketContext";
+import { useGame } from "../contexts/GameContext";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function GameBattleScreen() {
-  const navigation = useNavigation()
-  const { currentRoom, timeLeft, gamePhase, playerAnswer, opponentAnswer, submitAnswer } = useGame()
-  const { user } = useAuth()
-  const [selectedAnswer, setSelectedAnswer] = useState(null)
+  const navigation = useNavigation();
+  const isFocused = useIsFocused();
+  const { socket } = useSocket();
+  const {
+    gameSession,
+    players, 
+    setPlayers,
+    currentQuestion, 
+    setCurrentQuestion,
+    setLeaderboard,
+    gamePhase, 
+    setGamePhase,
+    answerResult, 
+    setAnswerResult,
+    submitAnswer,
+    updatePlayerScore
+  } = useGame();
+  const { user } = useAuth();
+
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [selectedOptionId, setSelectedOptionId] = useState(null);
+  const [localScoreUpdate, setLocalScoreUpdate] = useState(null);
+  const [correctOptionId, setCorrectOptionId] = useState(null);
+  const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
+  const timerRef = useRef(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Pulse animation for critical timer
+  useEffect(() => {
+    if (timeLeft <= 5 && timeLeft > 0) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.3,
+            duration: 500,
+            useNativeDriver: true
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true
+          })
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [timeLeft]);
 
   useEffect(() => {
-    if (gamePhase === "finished") {
-      navigation.navigate("GameResults")
-    }
-  }, [gamePhase, navigation])
+    if (!socket || !isFocused || !gameSession?.pin) return;
+
+    // Announce player is ready for questions
+    socket.emit('player_ready_for_question', { pin: gameSession.pin });
+
+    const handleNewQuestion = (question) => {
+      console.log("Received new question:", question);
+      setCurrentQuestion(question);
+      setAnswerResult(null);
+      setSelectedOptionId(null);
+      setLocalScoreUpdate(null);
+      setCorrectOptionId(null);
+      setShowCorrectAnswer(false);
+      setGamePhase('question');
+      setTimeLeft(null); // Reset timer, will be set by 'question_timer'
+    };
+
+    const handleQuestionTimer = ({ duration }) => {
+      console.log(`Timer started with duration: ${duration}`);
+      setTimeLeft(duration);
+    };
+
+    const handleShowLeaderboard = (leaderboardPlayers) => {
+      console.log("Showing leaderboard:", leaderboardPlayers);
+      setShowCorrectAnswer(true); // Reveal the correct answer for a few seconds
+      
+      setTimeout(() => {
+        setLeaderboard(leaderboardPlayers);
+        setPlayers(leaderboardPlayers); // Update players list with latest scores
+        setGamePhase('results');
+        setShowCorrectAnswer(false); // Clean up for next round
+      }, 3000); // 3-second delay to show the result on the question screen
+    };
+
+    const handleAnswerResult = (result) => {
+      console.log('[FRONTEND-RECEIVE] Received answer_result from backend:', result);
+  setAnswerResult(result);
+  setCorrectOptionId(result.correctOptionId);
+
+      // This logic is now in the GameContext, but you can keep a local animation state if desired
+      if (result.isCorrect && result.scoreAwarded > 0) {
+        setLocalScoreUpdate({
+          playerName: user?.name,
+          scoreAdded: result.scoreAwarded
+        });
+        // The global player list will be updated via 'update_player_list'
+      }
+    };
+
+    const handleGameOver = (finalResults) => {
+      console.log("Game over. Final results:", finalResults);
+      setLeaderboard(finalResults.players);
+      setPlayers(finalResults.players);
+      setGamePhase('finished');
+      navigation.navigate('GameResults');
+    };
+
+    const handleGameError = ({ message }) => {
+      alert(`Game Error: ${message}`);
+      navigation.navigate('Dashboard');
+    };
+
+    const handleUpdatePlayers = (updatedPlayers) => {
+      console.log("Updating player list:", updatedPlayers);
+      setPlayers(updatedPlayers);
+      setLocalScoreUpdate(null); // Clear local animation state once global state is synced
+    };
+
+    socket.on('new_question', handleNewQuestion);
+    socket.on('question_timer', handleQuestionTimer);
+    socket.on('show_leaderboard', handleShowLeaderboard);
+    socket.on('answer_result', handleAnswerResult);
+    socket.on('game_over', handleGameOver);
+    socket.on('game_error', handleGameError);
+    socket.on('update_player_list', handleUpdatePlayers);
+
+    return () => {
+      socket.off('new_question', handleNewQuestion);
+      socket.off('question_timer', handleQuestionTimer);
+      socket.off('show_leaderboard', handleShowLeaderboard);
+      socket.off('answer_result', handleAnswerResult);
+      socket.off('game_over', handleGameOver);
+      socket.off('game_error', handleGameError);
+      socket.off('update_player_list', handleUpdatePlayers);
+    };
+  }, [socket, isFocused, gameSession?.pin, user?.name]);
 
   useEffect(() => {
-    if (gamePhase === "question" && playerAnswer === null) {
-      setSelectedAnswer(null)
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (gamePhase === 'question' && isFocused && typeof timeLeft === 'number' && timeLeft > 0) {
+      
+      timerRef.current = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     }
-  }, [gamePhase, playerAnswer])
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [gamePhase, isFocused, timeLeft]);
 
-  if (!currentRoom || !user) {
-    navigation.navigate("Dashboard")
-    return null
-  }
+  const handleAnswerSelect = (optionId) => {
+    if (answerResult || selectedOptionId || timeLeft === 0) return;
+    setSelectedOptionId(optionId);
+    submitAnswer(optionId);
+  };
 
-  const currentQuestion = currentRoom.questions[currentRoom.currentQuestion]
-  const opponent = currentRoom.players.find((p) => p.id !== user.id)
-  const userPlayer = currentRoom.players.find((p) => p.id === user.id)
-  const progress = ((currentRoom.currentQuestion + 1) / currentRoom.questions.length) * 100
+  /**
+   * REFINED: Determines the style for an answer option based on the game state.
+   */
+  const getAnswerStyle = (optionId) => {
+    const isThisOptionSelected = selectedOptionId === optionId;
+    const isThisOptionCorrect = correctOptionId === optionId;
 
-  const handleAnswerSelect = (answerIndex) => {
-    if (playerAnswer !== null || gamePhase !== "question") return
-    setSelectedAnswer(answerIndex)
-    submitAnswer(answerIndex)
-  }
-
-  const getAnswerStyle = (index) => {
-    if (gamePhase === "question") {
-      if (selectedAnswer === index) {
-        return [styles.answerButton, styles.selectedAnswer]
+    // State 1: After an answer result is received from the backend
+    if (answerResult) {
+      if (isThisOptionCorrect) {
+        return styles.correctAnswer; // Always highlight the correct answer in green
       }
-      if (playerAnswer === null) {
-        return [styles.answerButton, styles.activeAnswer]
+      if (isThisOptionSelected && !answerResult.isCorrect) {
+        return styles.wrongAnswer; // If this was the selected *and* wrong answer, highlight in red
       }
-      return [styles.answerButton, styles.disabledAnswer]
+      return styles.disabledAnswer; // All other unselected/incorrect options are grayed out
+    }
+    
+    // State 2: When the round ends and the correct answer is revealed to everyone
+    if (showCorrectAnswer) {
+       if (isThisOptionCorrect) {
+        return styles.correctAnswer;
+      }
+      return styles.disabledAnswer;
     }
 
-    if (gamePhase === "results") {
-      if (index === currentQuestion.correctAnswer) {
-        return [styles.answerButton, styles.correctAnswer]
-      } else if (index === playerAnswer && index !== currentQuestion.correctAnswer) {
-        return [styles.answerButton, styles.wrongAnswer]
-      }
-      return [styles.answerButton, styles.neutralAnswer]
+    // State 3: While waiting for the result, after the user has clicked an option
+    if (isThisOptionSelected) {
+      return styles.selectedAnswer;
     }
+    
+    // Default state
+    return styles.answerButton;
+  };
 
-    return [styles.answerButton, styles.neutralAnswer]
-  }
+  const getCurrentPlayerData = () => {
+    return players.find(p => p.nickname === user?.name) || { nickname: user?.name || 'You', score: 0 };
+  };
 
-  const getTimerColor = () => {
-    if (timeLeft <= 3) return "#EF4444"
-    if (timeLeft <= 7) return "#F59E0B"
-    return "#10B981"
-  }
+  const me = getCurrentPlayerData();
+  const opponent = players.find(p => p.nickname !== user?.name) || { nickname: 'Opponent', score: 0 };
 
-  if (gamePhase === "countdown") {
+  if (gamePhase === 'results') {
     return (
-      <LinearGradient colors={["#1F2937", "#8B5CF6", "#1F2937"]} style={styles.container}>
-        <View style={styles.countdownContainer}>
-          <Text style={styles.countdownText}>{timeLeft === 0 ? "GO!" : timeLeft}</Text>
-          <Text style={styles.countdownSubtext}>
-            {currentRoom.currentQuestion === 0 ? "Game Starting..." : "Next Question..."}
-          </Text>
-        </View>
+      <LinearGradient colors={["#1F2937", "#111827"]} style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading Next Question...</Text>
+        <ActivityIndicator size="large" color="#FFF" />
       </LinearGradient>
-    )
+    );
+  }
+
+  if (gamePhase === 'finished') {
+    return (
+      <LinearGradient colors={["#1F2937", "#111827"]} style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FFF" />
+        <Text style={styles.loadingText}>Loading Results...</Text>
+      </LinearGradient>
+    );
+  }
+
+  if (!currentQuestion) {
+    return (
+      <LinearGradient colors={["#1F2937", "#111827"]} style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FFF" />
+        <Text style={styles.loadingText}>Waiting for game to start...</Text>
+      </LinearGradient>
+    );
   }
 
   return (
     <LinearGradient colors={["#1F2937", "#8B5CF6", "#1F2937"]} style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <View style={styles.questionInfo}>
-            <Text style={styles.questionNumber}>
-              Question {currentRoom.currentQuestion + 1} of {currentRoom.questions.length}
+      <ScrollView contentContainerStyle={{ paddingBottom: 40, paddingTop: 50 }}>
+        <View style={styles.contentWrapper}>
+          <View style={styles.header}>
+            <Text style={styles.questionCounter}>
+              Question {currentQuestion.questionNumber}/{currentQuestion.totalQuestions}
             </Text>
-            <Text style={styles.category}>{currentQuestion.category}</Text>
+            <Animated.View style={[styles.timerContainer, { transform: [{ scale: pulseAnim }] }]}>
+              <Text style={[
+                styles.timerText, 
+                timeLeft <= 10 && styles.timerWarning,
+                timeLeft <= 5 && styles.timerCritical
+              ]}>
+                {timeLeft}
+              </Text>
+            </Animated.View>
           </View>
 
-          {gamePhase === "question" && (
-            <View style={styles.timerContainer}>
-              <Text style={[styles.timerText, { color: getTimerColor() }]}>{timeLeft}s</Text>
-              <View style={styles.timerBar}>
-                <View
-                  style={[
-                    styles.timerProgress,
-                    {
-                      width: `${(timeLeft / 15) * 100}%`,
-                      backgroundColor: getTimerColor(),
-                    },
-                  ]}
-                />
-              </View>
-            </View>
-          )}
-        </View>
-
-        
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${progress}%` }]} />
-          </View>
-        </View>
-
-        
-        <View style={styles.playersContainer}>
-          <View style={styles.playerCard}>
-            <Text style={styles.playerAvatar}>{user.avatar}</Text>
-            <Text style={styles.playerName}>{user.username}</Text>
-            <Text style={styles.playerScore}>{userPlayer?.score || 0}</Text>
-            <View style={styles.playerStatus}>
-              {userPlayer?.hasAnswered && <Text style={styles.statusText}>✓ Answered!</Text>}
-              {!userPlayer?.hasAnswered && gamePhase === "question" && (
-                <Text style={styles.statusText}>Thinking...</Text>
-              )}
-            </View>
-          </View>
-
-          <View style={styles.playerCard}>
-            <Text style={styles.playerAvatar}>{opponent?.avatar}</Text>
-            <Text style={styles.playerName}>{opponent?.username}</Text>
-            <Text style={styles.playerScore}>{opponent?.score || 0}</Text>
-            <View style={styles.playerStatus}>
-              {opponent?.hasAnswered && <Text style={styles.statusText}>✓ Answered!</Text>}
-              {!opponent?.hasAnswered && gamePhase === "question" && <Text style={styles.statusText}>Thinking...</Text>}
-            </View>
-          </View>
-        </View>
-
-        
-        <View style={styles.questionContainer}>
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryBadgeText}>
-              {currentQuestion.category} • {currentQuestion.difficulty}
-            </Text>
-          </View>
-          <Text style={styles.questionText}>{currentQuestion.question}</Text>
-
-          {gamePhase === "question" && (
-            <Text style={styles.questionHint}>⚡ Choose your answer quickly for bonus points!</Text>
-          )}
-        </View>
-
-        
-        <View style={styles.answersContainer}>
-          {currentQuestion.options.map((option, index) => (
-            <TouchableOpacity
-              key={index}
-              style={getAnswerStyle(index)}
-              onPress={() => handleAnswerSelect(index)}
-              disabled={playerAnswer !== null || gamePhase !== "question"}
-            >
-              <View style={styles.answerContent}>
-                <View style={styles.answerLetter}>
-                  <Text style={styles.answerLetterText}>{String.fromCharCode(65 + index)}</Text>
-                </View>
-                <Text style={styles.answerText}>{option}</Text>
-
-                {gamePhase === "results" && (
-                  <View style={styles.answerIcon}>
-                    {index === currentQuestion.correctAnswer ? (
-                      <Text style={styles.correctIcon}>✓</Text>
-                    ) : index === playerAnswer && index !== currentQuestion.correctAnswer ? (
-                      <Text style={styles.wrongIcon}>✗</Text>
-                    ) : null}
-                  </View>
+          <View style={styles.playersContainer}>
+            <View style={[styles.playerCard, localScoreUpdate?.playerName === me.nickname && styles.scoreHighlight]}>
+              <Text style={styles.playerName} numberOfLines={1}>{me.nickname}</Text>
+              <View style={styles.scoreContainer}>
+                <Text style={styles.playerScore}>{me.score}</Text>
+                {localScoreUpdate?.playerName === me.nickname && (
+                  <Text style={styles.scoreAnimation}>+{localScoreUpdate.scoreAdded}</Text>
                 )}
               </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        
-        <View style={styles.statusContainer}>
-          {gamePhase === "question" && playerAnswer === null && (
-            <View style={styles.statusContent}>
-              <Text style={styles.statusTitle}>Choose your answer before time runs out!</Text>
-              <Text style={styles.statusSubtitle}>⚡ Faster answers earn bonus points</Text>
             </View>
-          )}
-
-          {gamePhase === "question" && playerAnswer !== null && (
-            <View style={styles.statusContent}>
-              <Text style={styles.statusTitle}>✓ Answer submitted!</Text>
-              <Text style={styles.statusSubtitle}>Waiting for opponent...</Text>
+            <View style={styles.playerCard}>
+              <Text style={styles.playerName} numberOfLines={1}>{opponent.nickname}</Text>
+              <Text style={styles.playerScore}>{opponent.score}</Text>
             </View>
-          )}
+          </View>
 
-          {gamePhase === "results" && (
-            <View style={styles.statusContent}>
-              <Text
-                style={[
-                  styles.statusTitle,
-                  {
-                    color:
-                      playerAnswer === currentQuestion.correctAnswer
-                        ? "#10B981"
-                        : playerAnswer === -1
-                          ? "#F59E0B"
-                          : "#EF4444",
-                  },
-                ]}
+          <View style={styles.questionContainer}>
+            <Text style={styles.questionText}>{currentQuestion.text}</Text>
+          </View>
+
+          <View style={styles.answersContainer}>
+            {currentQuestion.options.map((option, index) => (
+              <TouchableOpacity
+                key={option.id}
+                style={[styles.answerButton, getAnswerStyle(option.id)]}
+                onPress={() => handleAnswerSelect(option.id)}
+                disabled={!!selectedOptionId || !!answerResult || timeLeft === 0 || showCorrectAnswer}
               >
-                {playerAnswer === currentQuestion.correctAnswer
-                  ? "Correct! 🎉"
-                  : playerAnswer === -1
-                    ? "Time's Up! ⏰"
-                    : "Incorrect 😔"}
-              </Text>
-
-              <View style={styles.resultCard}>
-                <Text style={styles.resultText}>
-                  <Text style={styles.resultLabel}>Correct Answer: </Text>
-                  {currentQuestion.options[currentQuestion.correctAnswer]}
+                <Text style={styles.answerText}>
+                  {String.fromCharCode(65 + index)}. {option.text}
                 </Text>
-                {playerAnswer === currentQuestion.correctAnswer && userPlayer && (
-                  <Text style={styles.pointsEarned}>
-                    +{Math.floor(userPlayer.score - (userPlayer.score - 100) || 0)} points earned!
-                  </Text>
-                )}
-              </View>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-              <Text style={styles.statusSubtitle}>
-                {currentRoom.currentQuestion < currentRoom.questions.length - 1
-                  ? "Next question in 3 seconds..."
-                  : "Calculating final results..."}
+          {answerResult && (
+            <View style={styles.feedbackContainer}>
+              <Text style={[
+                styles.feedbackText, 
+                answerResult.isCorrect ? styles.correctText : styles.incorrectText
+              ]}>
+                {answerResult.isCorrect ? 
+                  `Correct! +${answerResult.scoreAwarded} points` : 
+                  'Incorrect!'}
               </Text>
             </View>
           )}
+
         </View>
       </ScrollView>
     </LinearGradient>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  container: { 
+    flex: 1 
   },
-  scrollView: {
-    flex: 1,
-    paddingTop: 50,
+  contentWrapper: {
+    flex: 1
   },
-  countdownContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+  loadingContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
   },
-  countdownText: {
-    fontSize: 120,
-    fontWeight: "bold",
-    color: "white",
-    marginBottom: 20,
+  loadingText: { 
+    color: '#FFF', 
+    marginTop: 10, 
+    fontSize: 16 
   },
-  countdownSubtext: {
-    fontSize: 20,
-    color: "rgba(255, 255, 255, 0.8)",
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    paddingHorizontal: 20, 
+    marginBottom: 15 
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: "rgba(0, 0, 0, 0.2)",
+  questionCounter: { 
+    color: '#D1D5DB', 
+    fontSize: 16 
   },
-  questionInfo: {
-    alignItems: "center",
-    marginBottom: 12,
+  timerContainer: { 
+    width: 50, 
+    height: 50, 
+    borderRadius: 25, 
+    backgroundColor: 'rgba(255,255,255,0.2)', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
   },
-  questionNumber: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "white",
+  timerText: { 
+    color: '#FFF', 
+    fontSize: 20, 
+    fontWeight: 'bold' 
   },
-  category: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.7)",
-    marginTop: 4,
+  timerWarning: { 
+    color: '#FBBF24' 
   },
-  timerContainer: {
-    alignItems: "center",
+  timerCritical: { 
+    color: '#EF4444' 
   },
-  timerText: {
-    fontSize: 32,
-    fontWeight: "bold",
-    marginBottom: 8,
+  playersContainer: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    paddingHorizontal: 20, 
+    marginBottom: 20 
   },
-  timerBar: {
-    width: 80,
-    height: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    borderRadius: 4,
-    overflow: "hidden",
+  playerCard: { 
+    flex: 1, 
+    backgroundColor: 'rgba(255,255,255,0.1)', 
+    borderRadius: 8, 
+    padding: 12, 
+    marginHorizontal: 5 
   },
-  timerProgress: {
-    height: "100%",
-    borderRadius: 4,
+  scoreHighlight: { 
+    backgroundColor: 'rgba(16, 185, 129, 0.3)', 
+    borderWidth: 2, 
+    borderColor: '#10B981' 
   },
-  progressContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
+  playerName: { 
+    color: '#FFF', 
+    fontSize: 14, 
+    fontWeight: 'bold' 
   },
-  progressBar: {
-    height: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    borderRadius: 4,
-    overflow: "hidden",
+  scoreContainer: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between' 
   },
-  progressFill: {
-    height: "100%",
-    backgroundColor: "#8B5CF6",
-    borderRadius: 4,
+  playerScore: { 
+    color: '#FFF', 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    marginTop: 4 
   },
-  playersContainer: {
-    flexDirection: "row",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    gap: 16,
+  scoreAnimation: { 
+    color: '#10B981', 
+    fontSize: 16, 
+    fontWeight: 'bold', 
+    marginTop: 4 
   },
-  playerCard: {
-    flex: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
+  questionContainer: { 
+    backgroundColor: 'rgba(0,0,0,0.2)', 
+    padding: 20, 
+    marginHorizontal: 20, 
+    borderRadius: 12, 
+    minHeight: 120, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
   },
-  playerAvatar: {
-    fontSize: 24,
-    marginBottom: 8,
+  questionText: { 
+    color: '#FFF', 
+    fontSize: 22, 
+    fontWeight: 'bold', 
+    textAlign: 'center', 
+    lineHeight: 30 
   },
-  playerName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "white",
-    marginBottom: 4,
+  answersContainer: { 
+    marginTop: 20, 
+    paddingHorizontal: 20 
   },
-  playerScore: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "white",
-    marginBottom: 8,
+  answerButton: { 
+    backgroundColor: 'rgba(255,255,255,0.1)', 
+    padding: 16, 
+    borderRadius: 12, 
+    marginBottom: 10, 
+    borderWidth: 2, 
+    borderColor: 'transparent' 
   },
-  playerStatus: {
-    minHeight: 20,
+  answerText: { 
+    color: '#FFF', 
+    fontSize: 18 
   },
-  statusText: {
-    fontSize: 12,
-    color: "#10B981",
-    fontWeight: "500",
+  selectedAnswer: { 
+    borderColor: '#3B82F6', 
+    backgroundColor: 'rgba(59, 130, 246, 0.3)' 
   },
-  questionContainer: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    marginHorizontal: 20,
-    marginVertical: 16,
-    borderRadius: 16,
-    padding: 24,
-    alignItems: "center",
+  correctAnswer: { 
+    borderColor: '#10B981', 
+    backgroundColor: 'rgba(16, 185, 129, 0.4)' 
   },
-  categoryBadge: {
-    backgroundColor: "rgba(139, 92, 246, 0.3)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginBottom: 16,
+  wrongAnswer: { 
+    borderColor: '#EF4444', 
+    backgroundColor: 'rgba(239, 68, 68, 0.4)' 
   },
-  categoryBadgeText: {
-    color: "#C4B5FD",
-    fontSize: 12,
-    fontWeight: "500",
+  disabledAnswer: { 
+    opacity: 0.6,
+    backgroundColor: 'rgba(107, 114, 128, 0.2)',
+    borderColor: 'transparent'
   },
-  questionText: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "white",
-    textAlign: "center",
-    lineHeight: 28,
-    marginBottom: 16,
+  feedbackContainer: { 
+    marginTop: 20, 
+    paddingHorizontal: 20, 
+    alignItems: 'center' 
   },
-  questionHint: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.7)",
-    textAlign: "center",
+  feedbackText: { 
+    fontSize: 22, 
+    fontWeight: 'bold', 
+    textAlign: 'center' 
   },
-  answersContainer: {
-    paddingHorizontal: 20,
-    gap: 12,
+  correctText: { 
+    color: '#34D399' // Brighter green
   },
-  answerButton: {
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  activeAnswer: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  selectedAnswer: {
-    backgroundColor: "rgba(59, 130, 246, 0.3)",
-    borderWidth: 2,
-    borderColor: "#3B82F6",
-  },
-  disabledAnswer: {
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-  },
-  correctAnswer: {
-    backgroundColor: "rgba(16, 185, 129, 0.3)",
-    borderWidth: 2,
-    borderColor: "#10B981",
-  },
-  wrongAnswer: {
-    backgroundColor: "rgba(239, 68, 68, 0.3)",
-    borderWidth: 2,
-    borderColor: "#EF4444",
-  },
-  neutralAnswer: {
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-  },
-  answerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-  },
-  answerLetter: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  answerLetterText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "white",
-  },
-  answerText: {
-    flex: 1,
-    fontSize: 16,
-    color: "white",
-  },
-  answerIcon: {
-    marginLeft: 16,
-  },
-  correctIcon: {
-    fontSize: 20,
-    color: "#10B981",
-  },
-  wrongIcon: {
-    fontSize: 20,
-    color: "#EF4444",
-  },
-  statusContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-  },
-  statusContent: {
-    alignItems: "center",
-  },
-  statusTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "white",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  statusSubtitle: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.7)",
-    textAlign: "center",
-  },
-  resultCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 12,
-    padding: 16,
-    marginVertical: 12,
-    width: "100%",
-  },
-  resultText: {
-    fontSize: 16,
-    color: "rgba(255, 255, 255, 0.9)",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  resultLabel: {
-    fontWeight: "bold",
-  },
-  pointsEarned: {
-    fontSize: 14,
-    color: "#10B981",
-    textAlign: "center",
-    fontWeight: "500",
-  },
-})
+  incorrectText: { 
+    color: '#F87171' // Brighter red
+  }
+});
