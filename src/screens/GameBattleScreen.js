@@ -13,11 +13,13 @@ import { useNavigation, useIsFocused } from "@react-navigation/native";
 import { useSocket } from "../contexts/SocketContext";
 import { useGame } from "../contexts/GameContext";
 import { useAuth } from "../contexts/AuthContext";
+import { useToast } from "../contexts/ToastContext";
 
 export default function GameBattleScreen() {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   const { socket } = useSocket();
+  const { showToast } = useToast();
   const {
     gameSession,
     players, 
@@ -30,7 +32,7 @@ export default function GameBattleScreen() {
     answerResult, 
     setAnswerResult,
     submitAnswer,
-    updatePlayerScore
+    leaveGame
   } = useGame();
   const { user } = useAuth();
 
@@ -39,10 +41,11 @@ export default function GameBattleScreen() {
   const [localScoreUpdate, setLocalScoreUpdate] = useState(null);
   const [correctOptionId, setCorrectOptionId] = useState(null);
   const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
+  const [connectionError, setConnectionError] = useState(false);
   const timerRef = useRef(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // Pulse animation for critical timer
+
   useEffect(() => {
     if (timeLeft <= 5 && timeLeft > 0) {
       Animated.loop(
@@ -65,9 +68,17 @@ export default function GameBattleScreen() {
   }, [timeLeft]);
 
   useEffect(() => {
-    if (!socket || !isFocused || !gameSession?.pin) return;
+    if (!socket || !isFocused || !gameSession?.pin) {
+      console.log("GameBattle: Missing socket, focus, or game session");
+      return;
+    }
 
-    // Announce player is ready for questions
+    console.log("GameBattle: Setting up socket listeners for game:", gameSession.pin);
+
+  
+    setConnectionError(false);
+
+    
     socket.emit('player_ready_for_question', { pin: gameSession.pin });
 
     const handleNewQuestion = (question) => {
@@ -79,7 +90,8 @@ export default function GameBattleScreen() {
       setCorrectOptionId(null);
       setShowCorrectAnswer(false);
       setGamePhase('question');
-      setTimeLeft(null); // Reset timer, will be set by 'question_timer'
+      setTimeLeft(null); 
+      setConnectionError(false); 
     };
 
     const handleQuestionTimer = ({ duration }) => {
@@ -89,28 +101,28 @@ export default function GameBattleScreen() {
 
     const handleShowLeaderboard = (leaderboardPlayers) => {
       console.log("Showing leaderboard:", leaderboardPlayers);
-      setShowCorrectAnswer(true); // Reveal the correct answer for a few seconds
+      setShowCorrectAnswer(true);
       
       setTimeout(() => {
         setLeaderboard(leaderboardPlayers);
-        setPlayers(leaderboardPlayers); // Update players list with latest scores
+        setPlayers(leaderboardPlayers); 
         setGamePhase('results');
-        setShowCorrectAnswer(false); // Clean up for next round
-      }, 3000); // 3-second delay to show the result on the question screen
+        setShowCorrectAnswer(false); 
+      }, 3000); 
     };
 
     const handleAnswerResult = (result) => {
       console.log('[FRONTEND-RECEIVE] Received answer_result from backend:', result);
-  setAnswerResult(result);
-  setCorrectOptionId(result.correctOptionId);
+      setAnswerResult(result);
+      setCorrectOptionId(result.correctOptionId);
 
-      // This logic is now in the GameContext, but you can keep a local animation state if desired
+    
       if (result.isCorrect && result.scoreAwarded > 0) {
         setLocalScoreUpdate({
           playerName: user?.name,
           scoreAdded: result.scoreAwarded
         });
-        // The global player list will be updated via 'update_player_list'
+       
       }
     };
 
@@ -122,15 +134,53 @@ export default function GameBattleScreen() {
       navigation.navigate('GameResults');
     };
 
+    
     const handleGameError = ({ message }) => {
-      alert(`Game Error: ${message}`);
-      navigation.navigate('Dashboard');
+      console.error("Game Error received:", message);
+      setConnectionError(true);
+      showToast("Game Error", message, "error");
+      
+      
+      setTimeout(() => {
+        // Only navigate away if this was a critical error that can't be recovered
+        if (message.includes("not found") || message.includes("cannot continue")) {
+          leaveGame();
+          navigation.navigate('Dashboard');
+        }
+      }, 3000);
     };
 
     const handleUpdatePlayers = (updatedPlayers) => {
       console.log("Updating player list:", updatedPlayers);
       setPlayers(updatedPlayers);
-      setLocalScoreUpdate(null); // Clear local animation state once global state is synced
+      setLocalScoreUpdate(null);
+    };
+
+    
+    const handleDisconnect = () => {
+      console.log("Socket disconnected in GameBattle");
+      setConnectionError(true);
+      showToast("Connection Lost", "Trying to reconnect...", "warning");
+    };
+
+    const handleConnect = () => {
+      console.log("Socket reconnected in GameBattle");
+      setConnectionError(false);
+      showToast("Reconnected", "Connection restored!", "success");
+     
+      socket.emit('player_ready_for_question', { pin: gameSession.pin });
+    };
+
+   
+    const handlePlayerDisconnected = ({ nickname, playerId }) => {
+      if (playerId === socket.data?.playerId) {
+        console.log("This player was disconnected from the game");
+        showToast("Disconnected", "You have been disconnected from the game", "error");
+        setTimeout(() => {
+          leaveGame();
+          navigation.navigate('Dashboard');
+        }, 2000);
+      }
     };
 
     socket.on('new_question', handleNewQuestion);
@@ -140,6 +190,9 @@ export default function GameBattleScreen() {
     socket.on('game_over', handleGameOver);
     socket.on('game_error', handleGameError);
     socket.on('update_player_list', handleUpdatePlayers);
+    socket.on('disconnect', handleDisconnect);
+    socket.on('connect', handleConnect);
+    socket.on('player_disconnected', handlePlayerDisconnected);
 
     return () => {
       socket.off('new_question', handleNewQuestion);
@@ -149,6 +202,9 @@ export default function GameBattleScreen() {
       socket.off('game_over', handleGameOver);
       socket.off('game_error', handleGameError);
       socket.off('update_player_list', handleUpdatePlayers);
+      socket.off('disconnect', handleDisconnect);
+      socket.off('connect', handleConnect);
+      socket.off('player_disconnected', handlePlayerDisconnected);
     };
   }, [socket, isFocused, gameSession?.pin, user?.name]);
 
@@ -172,30 +228,50 @@ export default function GameBattleScreen() {
   }, [gamePhase, isFocused, timeLeft]);
 
   const handleAnswerSelect = (optionId) => {
-    if (answerResult || selectedOptionId || timeLeft === 0) return;
+    if (answerResult || selectedOptionId || timeLeft === 0 || connectionError) return;
     setSelectedOptionId(optionId);
-    submitAnswer(optionId);
+    
+    try {
+      submitAnswer(optionId);
+    } catch (error) {
+      console.error("Error submitting answer:", error);
+      showToast("Error", "Failed to submit answer", "error");
+      setSelectedOptionId(null); 
+    }
   };
 
-  /**
-   * REFINED: Determines the style for an answer option based on the game state.
-   */
+ 
+  const handleRetryConnection = () => {
+    if (socket && gameSession?.pin) {
+      setConnectionError(false);
+      socket.emit('player_ready_for_question', { pin: gameSession.pin });
+      showToast("Retrying", "Attempting to reconnect...", "info");
+    }
+  };
+
+  const handleLeaveGame = () => {
+    leaveGame();
+    navigation.navigate('Dashboard');
+  };
+
+  
+  
   const getAnswerStyle = (optionId) => {
     const isThisOptionSelected = selectedOptionId === optionId;
     const isThisOptionCorrect = correctOptionId === optionId;
 
-    // State 1: After an answer result is received from the backend
+   
     if (answerResult) {
       if (isThisOptionCorrect) {
-        return styles.correctAnswer; // Always highlight the correct answer in green
+        return styles.correctAnswer; 
       }
       if (isThisOptionSelected && !answerResult.isCorrect) {
-        return styles.wrongAnswer; // If this was the selected *and* wrong answer, highlight in red
+        return styles.wrongAnswer; 
       }
-      return styles.disabledAnswer; // All other unselected/incorrect options are grayed out
+      return styles.disabledAnswer;
     }
     
-    // State 2: When the round ends and the correct answer is revealed to everyone
+    
     if (showCorrectAnswer) {
        if (isThisOptionCorrect) {
         return styles.correctAnswer;
@@ -203,12 +279,12 @@ export default function GameBattleScreen() {
       return styles.disabledAnswer;
     }
 
-    // State 3: While waiting for the result, after the user has clicked an option
+   
     if (isThisOptionSelected) {
       return styles.selectedAnswer;
     }
     
-    // Default state
+    
     return styles.answerButton;
   };
 
@@ -218,6 +294,24 @@ export default function GameBattleScreen() {
 
   const me = getCurrentPlayerData();
   const opponent = players.find(p => p.nickname !== user?.name) || { nickname: 'Opponent', score: 0 };
+
+  // FIXED: Show connection error state
+  if (connectionError) {
+    return (
+      <LinearGradient colors={["#1F2937", "#111827"]} style={styles.loadingContainer}>
+        <Text style={styles.errorText}>Connection Error</Text>
+        <Text style={styles.errorSubtext}>
+          There was a problem with the game connection.
+        </Text>
+        <TouchableOpacity style={styles.retryButton} onPress={handleRetryConnection}>
+          <Text style={styles.retryButtonText}>Retry Connection</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.leaveButton} onPress={handleLeaveGame}>
+          <Text style={styles.leaveButtonText}>Leave Game</Text>
+        </TouchableOpacity>
+      </LinearGradient>
+    );
+  }
 
   if (gamePhase === 'results') {
     return (
@@ -291,7 +385,7 @@ export default function GameBattleScreen() {
                 key={option.id}
                 style={[styles.answerButton, getAnswerStyle(option.id)]}
                 onPress={() => handleAnswerSelect(option.id)}
-                disabled={!!selectedOptionId || !!answerResult || timeLeft === 0 || showCorrectAnswer}
+                disabled={!!selectedOptionId || !!answerResult || timeLeft === 0 || showCorrectAnswer || connectionError}
               >
                 <Text style={styles.answerText}>
                   {String.fromCharCode(65 + index)}. {option.text}
@@ -329,12 +423,50 @@ const styles = StyleSheet.create({
   loadingContainer: { 
     flex: 1, 
     justifyContent: 'center', 
-    alignItems: 'center' 
+    alignItems: 'center',
+    paddingHorizontal: 20
   },
   loadingText: { 
     color: '#FFF', 
     marginTop: 10, 
     fontSize: 16 
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center'
+  },
+  errorSubtext: {
+    color: '#9CA3AF',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 30,
+    lineHeight: 24
+  },
+  retryButton: {
+    backgroundColor: '#8B5CF6',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 10
+  },
+  retryButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold'
+  },
+  leaveButton: {
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8
+  },
+  leaveButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold'
   },
   header: { 
     flexDirection: 'row', 
@@ -466,9 +598,9 @@ const styles = StyleSheet.create({
     textAlign: 'center' 
   },
   correctText: { 
-    color: '#34D399' // Brighter green
+    color: '#34D399' 
   },
   incorrectText: { 
-    color: '#F87171' // Brighter red
+    color: '#F87171' 
   }
 });
