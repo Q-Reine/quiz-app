@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { StatusBar } from "expo-status-bar"
 import { NavigationContainer } from "@react-navigation/native"
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { ToastProvider } from "./src/contexts/ToastContext"
 import { AuthProvider } from "./src/contexts/AuthContext"
 import { GameProvider } from "./src/contexts/GameContext"
@@ -21,21 +22,27 @@ export default function App() {
   }, [])
 
   if (!isReady) {
-    return <LoadingScreen />
+    return (
+      <SafeAreaProvider>
+        <LoadingScreen />
+      </SafeAreaProvider>
+    )
   }
 
   return (
-    <NavigationContainer>
-      <ToastProvider>
-        <AuthProvider>
-          <SocketProvider>
-            <GameProvider>
-              <MainNavigator />
-              <StatusBar style="light" />
-            </GameProvider>
-          </SocketProvider>
-        </AuthProvider>
-      </ToastProvider>
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <ToastProvider>
+          <AuthProvider>
+            <SocketProvider>
+              <GameProvider>
+                <MainNavigator />
+                <StatusBar style="light" />
+              </GameProvider>
+            </SocketProvider>
+          </AuthProvider>
+        </ToastProvider>
+      </NavigationContainer>
+    </SafeAreaProvider>
   )
 }

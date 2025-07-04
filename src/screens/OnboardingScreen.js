@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions, SafeAre
 import { LinearGradient } from "expo-linear-gradient"
 import Icon from "react-native-vector-icons/MaterialIcons"
 import * as Animatable from "react-native-animatable"
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get("window")
 
@@ -85,7 +86,7 @@ export default function OnboardingScreen({ navigation }) {
   ).current
 
   useEffect(() => {
-    // floating animations
+    
     floatingElements.forEach((element, index) => {
       const animateFloat = () => {
         Animated.parallel([
@@ -132,7 +133,7 @@ export default function OnboardingScreen({ navigation }) {
       setTimeout(() => animateFloat(), index * 100)
     })
 
-    // Continuous rotation animation
+    
     Animated.loop(
       Animated.timing(rotateAnim, {
         toValue: 1,
@@ -142,11 +143,12 @@ export default function OnboardingScreen({ navigation }) {
     ).start()
   }, [])
 
-  const nextSlide = () => {
+  const nextSlide = async () => {
     if (currentIndex < onboardingData.length - 1) {
       animateTransition(() => setCurrentIndex(currentIndex + 1))
     } else {
-      navigation.navigate("QuickPlay")
+      await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+      navigation.navigate("Auth"); 
     }
   }
 
@@ -186,8 +188,9 @@ export default function OnboardingScreen({ navigation }) {
     })
   }
 
-  const skipOnboarding = () => {
-    navigation.navigate("QuickPlay")
+  const skipOnboarding = async () => {
+    await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+    navigation.navigate("Auth"); 
   }
 
   const currentSlide = onboardingData[currentIndex]
@@ -200,7 +203,7 @@ export default function OnboardingScreen({ navigation }) {
     <LinearGradient colors={currentSlide.gradient} style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={currentSlide.accentColor} />
 
-      
+      {/* Floating background elements */}
       {floatingElements.map((element, index) => (
         <Animated.View
           key={element.id}
@@ -220,7 +223,7 @@ export default function OnboardingScreen({ navigation }) {
         </Animated.View>
       ))}
 
-      
+      {/* Rotating gradient circles */}
       <Animated.View style={[styles.rotatingCircle, styles.circle1, { transform: [{ rotate: spin }] }]}>
         <LinearGradient colors={["rgba(255,255,255,0.1)", "transparent"]} style={styles.circleGradient} />
       </Animated.View>
@@ -229,7 +232,7 @@ export default function OnboardingScreen({ navigation }) {
       </Animated.View>
 
       <SafeAreaView style={styles.safeArea}>
-        
+        {/* Header with skip button */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.skipButton} onPress={skipOnboarding}>
             <Text style={styles.skipText}>Skip</Text>
@@ -246,7 +249,7 @@ export default function OnboardingScreen({ navigation }) {
             },
           ]}
         >
-          
+          {/* Illustration with emoji */}
           <Animatable.View animation="bounceIn" duration={1000} style={styles.illustrationContainer}>
             <View style={styles.illustrationBackground}>
               <LinearGradient
@@ -262,14 +265,14 @@ export default function OnboardingScreen({ navigation }) {
             <View style={[styles.illustrationGlow, { backgroundColor: `${currentSlide.accentColor}30` }]} />
           </Animatable.View>
 
-          
+          {/* Text content */}
           <Animatable.View animation="fadeInUp" delay={300} style={styles.textContainer}>
             <Text style={styles.title}>{currentSlide.title}</Text>
             <Text style={styles.subtitle}>{currentSlide.subtitle}</Text>
             <Text style={styles.description}>{currentSlide.description}</Text>
           </Animatable.View>
 
-          
+          {/* Features list */}
           <Animatable.View animation="fadeInUp" delay={600} style={styles.featuresContainer}>
             {currentSlide.features.map((feature, index) => (
               <Animatable.View key={index} animation="fadeInLeft" delay={800 + index * 200} style={styles.featureItem}>
@@ -280,7 +283,7 @@ export default function OnboardingScreen({ navigation }) {
           </Animatable.View>
         </Animated.View>
 
-        
+        {/* Bottom navigation */}
         <View style={styles.bottomSection}>
           <View style={styles.indicatorContainer}>
             {onboardingData.map((_, index) => (

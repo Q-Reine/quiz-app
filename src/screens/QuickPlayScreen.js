@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,29 +12,33 @@ import {
   Vibration,
   ScrollView,
   ActivityIndicator,
-} from "react-native"
-import { LinearGradient } from "expo-linear-gradient"
-import Icon from "react-native-vector-icons/MaterialIcons"
-import * as Animatable from "react-native-animatable"
-import { useGame } from "../contexts/GameContext"
-import { useNavigation } from "@react-navigation/native"
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import Icon from "react-native-vector-icons/MaterialIcons";
+import * as Animatable from "react-native-animatable";
+import { useGame } from "../contexts/GameContext";
+import { useNavigation } from "@react-navigation/native";
+import { useAuth } from "../contexts/AuthContext";
+import { useSocket } from "../contexts/SocketContext"; 
 
-const { width, height } = Dimensions.get("window")
+const { width, height } = Dimensions.get("window");
 
 export default function QuickPlayScreen() {
-  const navigation = useNavigation()
-  const [gamePin, setGamePin] = useState("")
-  const [playerName, setPlayerName] = useState("")
-  const [loading, setLoading] = useState(false)
-  const { joinGameSession } = useGame()
-  const [step, setStep] = useState(1)
+  const navigation = useNavigation();
+  const { user } = useAuth();
+  const { socket, isConnected } = useSocket(); 
+  const [gamePin, setGamePin] = useState("");
+  const [playerName, setPlayerName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { joinGameSession } = useGame(); 
+  const [step, setStep] = useState(1);
 
-  const pulseAnim = useRef(new Animated.Value(1)).current
-  const shakeAnim = useRef(new Animated.Value(0)).current
-  const slideAnim = useRef(new Animated.Value(0)).current
-  const scaleAnim = useRef(new Animated.Value(0.8)).current
-  const rotateAnim = useRef(new Animated.Value(0)).current
-  const fadeAnim = useRef(new Animated.Value(0)).current
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const [particles] = useState(
     Array.from({ length: 15 }, (_, i) => ({
@@ -44,7 +48,7 @@ export default function QuickPlayScreen() {
       scale: Math.random() * 0.5 + 0.5,
       opacity: Math.random() * 0.7 + 0.3,
     })),
-  )
+  );
 
   const particleRefs = useRef(
     Array.from({ length: 15 }, (_, i) => ({
@@ -52,7 +56,14 @@ export default function QuickPlayScreen() {
       translateY: new Animated.Value(Math.random() * height - height / 2),
       opacity: new Animated.Value(Math.random() * 0.7 + 0.3),
     })),
-  ).current
+  ).current;
+
+  useEffect(() => {
+    
+    if (user && user.name) {
+      setPlayerName(user.name);
+    }
+  }, [user]);
 
   useEffect(() => {
     Animated.parallel([
@@ -67,7 +78,7 @@ export default function QuickPlayScreen() {
         friction: 8,
         useNativeDriver: true,
       }),
-    ]).start()
+    ]).start();
 
     const pulseAnimation = Animated.loop(
       Animated.sequence([
@@ -82,8 +93,8 @@ export default function QuickPlayScreen() {
           useNativeDriver: true,
         }),
       ]),
-    )
-    pulseAnimation.start()
+    );
+    pulseAnimation.start();
 
     const rotateAnimation = Animated.loop(
       Animated.timing(rotateAnim, {
@@ -91,8 +102,8 @@ export default function QuickPlayScreen() {
         duration: 20000,
         useNativeDriver: true,
       }),
-    )
-    rotateAnimation.start()
+    );
+    rotateAnimation.start();
 
     particles.forEach((particle, index) => {
       const animateParticle = () => {
@@ -121,16 +132,16 @@ export default function QuickPlayScreen() {
               }),
             ]),
           ),
-        ]).start(() => animateParticle())
-      }
-      setTimeout(() => animateParticle(), index * 200)
-    })
+        ]).start(() => animateParticle());
+      };
+      setTimeout(() => animateParticle(), index * 200);
+    });
 
     return () => {
-      pulseAnimation.stop()
-      rotateAnimation.stop()
-    }
-  }, [])
+      pulseAnimation.stop();
+      rotateAnimation.stop();
+    };
+  }, []);
 
   const handlePinSubmit = () => {
     if (gamePin.length !== 6) {
@@ -139,58 +150,88 @@ export default function QuickPlayScreen() {
         Animated.timing(shakeAnim, { toValue: -10, duration: 100, useNativeDriver: true }),
         Animated.timing(shakeAnim, { toValue: 10, duration: 100, useNativeDriver: true }),
         Animated.timing(shakeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
-      ]).start()
+      ]).start();
 
-      Vibration.vibrate(200)
-      Alert.alert("Invalid PIN", "Please enter a 6-digit game PIN")
-      return
+      Vibration.vibrate(200);
+      Alert.alert("Invalid PIN", "Please enter a 6-digit game PIN");
+      return;
     }
-    
-    Vibration.vibrate(50)
-    setStep(2)
-  }
+
+    Vibration.vibrate(50);
+    setStep(2);
+  };
+
 
   const handleJoinGame = async () => {
     if (!playerName.trim()) {
-      Alert.alert("Name Required", "Please enter your name to continue")
-      return
+      Alert.alert("Error", "Please enter a nickname");
+      return;
     }
 
-    setLoading(true)
-    
-    joinGameSession(gamePin, playerName, (response) => {
-      setLoading(false)
-      if (response.success) {
-        navigation.navigate("GameLobby", {
-          pin: gamePin,
-          isHost: false
-        })
-      } else {
-        Alert.alert("Failed to Join", response.message || "Could not find the game lobby.")
-        setStep(1)
+  
+    if (!isConnected || !socket) {
+      Alert.alert("Connection Error", "Not connected to the server. Please check your internet and try again.");
+      return;
+    }
+
+    setLoading(true);
+
+    socket.emit(
+      'player_join',
+      { pin: gamePin, nickname: playerName.trim() },
+      (response) => {
+        setLoading(false);
+        if (response?.success) {
+          
+          navigation.navigate("GameLobby", {
+            pin: gamePin,
+            isHost: false,
+            nickname: playerName.trim(),
+            initialPlayers: response.players,
+          });
+        } else {
+        
+          Alert.alert("Failed to Join", response?.message || "An unknown error occurred.");
+        }
       }
-    })
-  }
+    );
+  };
 
   const generateRandomName = () => {
-    const adjectives = ["Swift", "Clever", "Bright", "Quick", "Smart", "Sharp", "Wise", "Bold"]
-    const nouns = ["Player", "Gamer", "Ninja", "Master", "Hero", "Champion", "Wizard", "Ace"]
-    const randomAdj = adjectives[Math.floor(Math.random() * adjectives.length)]
-    const randomNoun = nouns[Math.floor(Math.random() * nouns.length)]
-    const randomNum = Math.floor(Math.random() * 999) + 1
-    setPlayerName(`${randomAdj}${randomNoun}${randomNum}`)
-  }
+    const adjectives = ["Swift", "Clever", "Bright", "Quick", "Smart", "Sharp", "Wise", "Bold"];
+    const nouns = ["Player", "Gamer", "Ninja", "Master", "Hero", "Champion", "Wizard", "Ace"];
+    const randomAdj = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
+    const randomNum = Math.floor(Math.random() * 999) + 1;
+    setPlayerName(`${randomAdj}${randomNoun}${randomNum}`);
+  };
 
   const resetToStep1 = () => {
-    setStep(1)
-    setGamePin("")
-    setPlayerName("")
-  }
+    setStep(1);
+    setGamePin("");
+    if (!user) {
+      setPlayerName("");
+    }
+  };
+
+  const handleBackNavigation = () => {
+    if (user) {
+      
+      navigation.navigate("MainTabs");
+    } else {
+      
+      navigation.navigate("Welcome");
+    }
+  };
+
+  const handleSignUp = () => {
+    navigation.navigate("Auth", { screen: "SignUp" });
+  };
 
   const spin = rotateAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "360deg"],
-  })
+  });
 
   return (
     <LinearGradient colors={["#667eea", "#764ba2", "#f093fb"]} style={styles.container}>
@@ -221,7 +262,7 @@ export default function QuickPlayScreen() {
       </Animated.View>
 
       <SafeAreaView style={styles.safeArea}>
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollViewContent}
           showsVerticalScrollIndicator={false}
@@ -247,7 +288,9 @@ export default function QuickPlayScreen() {
                 <View style={styles.logoGlow} />
               </Animated.View>
               <Text style={styles.title}>Quick Play</Text>
-              <Text style={styles.subtitle}>Jump into any quiz instantly!</Text>
+              <Text style={styles.subtitle}>
+                {user ? `Welcome back, ${user.name}!` : "Jump into any quiz instantly!"}
+              </Text>
             </Animatable.View>
 
             {step === 1 && (
@@ -299,7 +342,9 @@ export default function QuickPlayScreen() {
                   <LinearGradient colors={["#ffffff", "#f8f9fa"]} style={styles.cardGradient}>
                     <View style={styles.cardHeader}>
                       <Icon name="person" size={24} color="#667eea" />
-                      <Text style={styles.cardTitle}>What's your name?</Text>
+                      <Text style={styles.cardTitle}>
+                        {user ? "Confirm your name" : "What's your name?"}
+                      </Text>
                     </View>
 
                     <View style={styles.nameInputContainer}>
@@ -309,14 +354,16 @@ export default function QuickPlayScreen() {
                         onChangeText={setPlayerName}
                         placeholder="Enter your name"
                         placeholderTextColor="#bbb"
-                        autoFocus
+                        autoFocus={!user}
                       />
                     </View>
 
-                    <TouchableOpacity style={styles.randomNameButton} onPress={generateRandomName}>
-                      <Icon name="shuffle" size={16} color="#667eea" />
-                      <Text style={styles.randomNameText}>Generate Random Name</Text>
-                    </TouchableOpacity>
+                    {!user && (
+                      <TouchableOpacity style={styles.randomNameButton} onPress={generateRandomName}>
+                        <Icon name="shuffle" size={16} color="#667eea" />
+                        <Text style={styles.randomNameText}>Generate Random Name</Text>
+                      </TouchableOpacity>
+                    )}
 
                     <View style={styles.gameInfoCard}>
                       <Text style={styles.gameInfoText}>Joining Game: {gamePin}</Text>
@@ -328,20 +375,30 @@ export default function QuickPlayScreen() {
                         <Text style={styles.backButtonText}>Back</Text>
                       </TouchableOpacity>
 
+                    
                       <TouchableOpacity
-                        style={[styles.joinButton, !playerName.trim() && styles.joinButtonDisabled]}
+                        style={[
+                          styles.joinButton,
+                          (!playerName.trim() || !isConnected) && styles.joinButtonDisabled
+                        ]}
                         onPress={handleJoinGame}
-                        disabled={!playerName.trim() || loading}
+                        disabled={!playerName.trim() || loading || !isConnected}
                       >
                         <LinearGradient
-                          colors={playerName.trim() ? ["#4ecdc4", "#44a08d"] : ["#ccc", "#999"]}
+                          colors={
+                            (playerName.trim() && isConnected)
+                              ? ["#4ecdc4", "#44a08d"]
+                              : ["#ccc", "#999"]
+                          }
                           style={styles.buttonGradient}
                         >
                           {loading ? (
                             <ActivityIndicator color="#FFF" />
                           ) : (
                             <>
-                              <Text style={styles.buttonText}>Join Game</Text>
+                              <Text style={styles.buttonText}>
+                                {isConnected ? 'Join Game' : 'Connecting...'}
+                              </Text>
                               <Icon name="play-arrow" size={20} color="#FFFFFF" />
                             </>
                           )}
@@ -364,15 +421,24 @@ export default function QuickPlayScreen() {
 
         {step === 1 && (
           <Animatable.View animation="fadeInUp" delay={1200} style={styles.bottomNav}>
-            <TouchableOpacity style={styles.bottomNavButton} onPress={() => navigation.goBack()}>
-              <Icon name="dashboard" size={20} color="#FFFFFF" />
-              <Text style={styles.bottomNavText}>Back to Dashboard</Text>
+            <TouchableOpacity style={styles.bottomNavButton} onPress={handleBackNavigation}>
+              <Icon name={user ? "dashboard" : "home"} size={20} color="#FFFFFF" />
+              <Text style={styles.bottomNavText}>
+                {user ? "Back to Dashboard" : "Back to Home"}
+              </Text>
             </TouchableOpacity>
+
+            {!user && (
+              <TouchableOpacity style={styles.signUpButton} onPress={handleSignUp}>
+                <Icon name="person-add" size={20} color="#667eea" />
+                <Text style={styles.signUpButtonText}>Create Account</Text>
+              </TouchableOpacity>
+            )}
           </Animatable.View>
         )}
       </SafeAreaView>
     </LinearGradient>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -624,59 +690,6 @@ const styles = StyleSheet.create({
   joinButtonDisabled: {
     shadowOpacity: 0.1,
   },
-  loadingCard: {
-    borderRadius: 25,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 15 },
-    shadowOpacity: 0.2,
-    shadowRadius: 25,
-    elevation: 15,
-  },
-  loadingIconContainer: {
-    alignItems: "center",
-    marginBottom: 25,
-  },
-  loadingIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#2c3e50",
-    textAlign: "center",
-    marginBottom: 10,
-  },
-  loadingSubtitle: {
-    fontSize: 16,
-    color: "#6c757d",
-    textAlign: "center",
-    marginBottom: 30,
-    lineHeight: 22,
-  },
-  loadingDots: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginHorizontal: 4,
-  },
-  dot1: {
-    backgroundColor: "#667eea",
-  },
-  dot2: {
-    backgroundColor: "#764ba2",
-  },
-  dot3: {
-    backgroundColor: "#f093fb",
-  },
   funFactsContainer: {
     backgroundColor: "rgba(255, 255, 255, 0.15)",
     borderRadius: 20,
@@ -711,6 +724,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.3)",
+    marginBottom: 10,
   },
   bottomNavText: {
     color: "#FFFFFF",
@@ -718,4 +732,20 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 8,
   },
-})
+  signUpButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderRadius: 15,
+    paddingVertical: 15,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+  },
+  signUpButtonText: {
+    color: "#667eea",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+});

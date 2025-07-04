@@ -40,22 +40,25 @@ export default function QuizDetailScreen({ route, navigation }) {
         fetchQuizDetails();
     }, [quizId]);
 
-    const handleStartGame = async () => {
-        setIsHosting(true);
-        try {
-            // Step 1: Create the session and get the PIN.
-            const pin = await createGameSessionAPI(quiz.id);
-            if (pin) {
-                // Step 2: Navigate to the lobby, passing the PIN and host status.
-                navigation.navigate('GameLobby', { pin, isHost: true });
-            }
-        } catch (error) {
-            Alert.alert("Hosting Error", error.message || "Could not create a game session.");
-        } finally {
-            setIsHosting(false);
+   const handleStartGame = async () => {
+    setIsHosting(true);
+    try {
+       
+        const pin = await createGameSessionAPI(quiz.id);
+        if (pin) {
+            
+            navigation.navigate('GameLobby', { 
+                pin, 
+                isHost: true, 
+                nickname: user.name || user.username || 'Host' 
+            });
         }
-    };
-
+    } catch (error) {
+        Alert.alert("Hosting Error", error.message || "Could not create a game session.");
+    } finally {
+        setIsHosting(false);
+    }
+};
     const handleDeleteQuiz = () => {
         Alert.alert(
             "Delete Quiz",

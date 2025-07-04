@@ -21,7 +21,7 @@ export default function DashboardScreen() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        leaveGame(); // Reset game state when entering dashboard
+        leaveGame(); 
 
         const fetchFeatured = async () => {
             setLoading(true);
@@ -37,10 +37,10 @@ export default function DashboardScreen() {
         if (user) fetchFeatured();
     }, [user]);
 
-    // This useEffect hook now correctly depends on `socket`
+    
     useEffect(() => {
         if (!socket || !user) {
-            return; // Do nothing if socket or user are not available
+            return; 
         }
 
         const handleSearching = () => setIsSearching(true);
@@ -64,16 +64,16 @@ export default function DashboardScreen() {
         socket.on('match_found', handleMatchFound);
         socket.on('match_error', handleMatchError);
 
-        // The cleanup function for this effect
+        
         return () => {
-            // The `if (socket)` check is vital for preventing crashes on logout
+           
             if (socket) {
                 socket.off('searching_for_match', handleSearching);
                 socket.off('match_found', handleMatchFound);
                 socket.off('match_error', handleMatchError);
             }
         };
-    }, [socket, user]); // Dependency array now includes `socket`
+    }, [socket, user]); 
 
     const handleFindMatch = () => {
         if (socket && !isSearching) {

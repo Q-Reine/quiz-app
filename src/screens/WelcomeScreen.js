@@ -10,21 +10,13 @@ export default function WelcomeScreen() {
   const { user } = useAuth();
 
   const handleQuickPlay = () => {
-    if (user) {
-      navigation.navigate("QuickPlay");
-    } else {
-      navigation.navigate("Auth", { 
-        screen: "Login",
-        params: { nextScreen: "QuickPlay" }
-      });
-    }
+    
+    navigation.navigate("QuickPlay");
   };
 
- const handleGetStarted = () => {
-  navigation.navigate("Auth");
-};
-
-  
+  const handleGetStarted = () => {
+    navigation.navigate("Onboarding");
+  };
 
   return (
     <LinearGradient colors={["#8B5CF6", "#3B82F6", "#EC4899"]} style={styles.container}>
@@ -81,23 +73,22 @@ export default function WelcomeScreen() {
         </View>
 
         <View style={styles.buttonContainer}>
-  <TouchableOpacity 
-    style={[styles.button, styles.primaryButton]} 
-    onPress={handleGetStarted}
-  >
-    <LinearGradient colors={["#10B981", "#3B82F6"]} style={styles.buttonGradient}>
-      <Text style={styles.buttonText}>Get Started</Text>
-    </LinearGradient>
-  </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.button, styles.primaryButton]} 
+            onPress={handleGetStarted}
+          >
+            <LinearGradient colors={["#10B981", "#3B82F6"]} style={styles.buttonGradient}>
+              <Text style={styles.buttonText}>Get Started</Text>
+            </LinearGradient>
+          </TouchableOpacity>
 
-  <TouchableOpacity 
-    style={[styles.button, styles.secondaryButton]} 
-    onPress={handleQuickPlay}
-  >
-    <Text style={styles.secondaryButtonText}>Quick Play</Text>
-  </TouchableOpacity>
-</View>
-
+          <TouchableOpacity 
+            style={[styles.button, styles.secondaryButton]} 
+            onPress={handleQuickPlay}
+          >
+            <Text style={styles.secondaryButtonText}>Quick Play</Text>
+          </TouchableOpacity>
+        </View>
 
         <Text style={styles.footerText}>Join millions of quiz enthusiasts worldwide</Text>
       </ScrollView>

@@ -4,56 +4,65 @@ import { io } from "socket.io-client";
 import { useAuth } from "./AuthContext";
 
 
-const SOCKET_URL = 'http://172.20.10.4:3000'; 
+const SOCKET_URL = 'http://192.168.18.77:3000'; 
 
 const SocketContext = createContext(undefined);
 
+export function useSocket() {
+    const context = useContext(SocketContext);
+    if (context === undefined) {
+        throw new Error("useSocket must be used within a SocketProvider");
+    }
+    return context;
+}
+
 export function SocketProvider({ children }) {
-    
     const socketRef = useRef(null);
     const [isConnected, setIsConnected] = useState(false);
-    const { user, token } = useAuth();
+    const { user } = useAuth(); 
 
+    
     useEffect(() => {
-   
-        if (user && token) {
-           
-            if (!socketRef.current) {
-                console.log("[SocketContext] Creating new socket connection...");
-                socketRef.current = io(SOCKET_URL);
-
-                socketRef.current.on("connect", () => {
-                    console.log("[SocketContext] Socket connected:", socketRef.current.id);
-                    setIsConnected(true);
-                    if (user) {
-                        socketRef.current.emit('authenticate', user.id);
-                    }
-                });
-
-                socketRef.current.on("disconnect", () => {
-                    console.log("[SocketContext] Socket disconnected.");
-                    setIsConnected(false);
-                });
-            }
-        } else {
-           
-            if (socketRef.current) {
-                console.log("[SocketContext] Disconnecting socket...");
-                socketRef.current.disconnect();
-                socketRef.current = null; // Clean up the ref
-                setIsConnected(false); // Ensure connected state is false
-            }
-        }
         
-   
+        console.log("[SocketContext] Initializing socket connection...");
+        const newSocket = io(SOCKET_URL, {
+            transports: ['websocket'], 
+            reconnectionAttempts: 5,
+        });
+
+        socketRef.current = newSocket;
+
+       
+        newSocket.on("connect", () => {
+            console.log("[SocketContext] Socket connected:", newSocket.id);
+            setIsConnected(true);
+        });
+
+        newSocket.on("disconnect", (reason) => {
+            console.log("[SocketContext] Socket disconnected:", reason);
+            setIsConnected(false);
+        });
+
+        newSocket.on('connect_error', (err) => {
+            console.error('[SocketContext] Connection Error:', err.message);
+        });
+
+      
         return () => {
-            if (socketRef.current) {
-                console.log("[SocketContext] Cleaning up socket on provider unmount.");
-                socketRef.current.disconnect();
-                socketRef.current = null;
-            }
+            console.log("[SocketContext] Cleaning up socket connection.");
+            newSocket.disconnect();
         };
-    }, [user, token]); 
+    }, []); 
+
+    
+    useEffect(() => {
+        
+        if (socketRef.current && isConnected && user) {
+            console.log(`[SocketContext] Authenticating user: ${user.name} (ID: ${user.id})`);
+            socketRef.current.emit('authenticate', user.id);
+        }
+       
+    }, [user, isConnected]);
 
     const contextValue = {
         socket: socketRef.current,
@@ -65,12 +74,4 @@ export function SocketProvider({ children }) {
             {children}
         </SocketContext.Provider>
     );
-}
-
-export function useSocket() {
-    const context = useContext(SocketContext);
-    if (context === undefined) {
-        throw new Error("useSocket must be used within a SocketProvider");
-    }
-    return context;
 }
