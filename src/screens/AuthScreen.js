@@ -105,7 +105,7 @@ export default function AuthScreen() {
                   </LinearGradient>
                 </TouchableOpacity>
 
-                <Text style={styles.demoText}>Demo: test@example.com / password</Text>
+                
               </View>
             ) : (
               
