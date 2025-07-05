@@ -21,27 +21,39 @@ export default function DashboardScreen() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        leaveGame(); 
-
-        const fetchFeatured = async () => {
-            setLoading(true);
+        let isMounted = true;
+        
+        const fetchData = async () => {
             try {
-                const response = await api.get('/categories');
-                setFeaturedCategories(response.data.slice(0, 4));
+                leaveGame();
+                
+                if (user) {
+                    const response = await api.get('/categories');
+                    if (isMounted) {
+                        setFeaturedCategories(response.data.slice(0, 4));
+                    }
+                }
             } catch (error) {
                 console.error("Fetch featured categories error:", error);
+                if (isMounted) {
+                    showToast('Error', 'Failed to load categories', 'error');
+                }
             } finally {
-                setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         };
-        if (user) fetchFeatured();
-    }, [user]);
 
-    
+        fetchData();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [user, leaveGame, showToast]);
+
     useEffect(() => {
-        if (!socket || !user) {
-            return; 
-        }
+        if (!socket || !user) return;
 
         const handleSearching = () => setIsSearching(true);
         const handleMatchFound = (data) => {
@@ -64,16 +76,12 @@ export default function DashboardScreen() {
         socket.on('match_found', handleMatchFound);
         socket.on('match_error', handleMatchError);
 
-        
         return () => {
-           
-            if (socket) {
-                socket.off('searching_for_match', handleSearching);
-                socket.off('match_found', handleMatchFound);
-                socket.off('match_error', handleMatchError);
-            }
+            socket.off('searching_for_match', handleSearching);
+            socket.off('match_found', handleMatchFound);
+            socket.off('match_error', handleMatchError);
         };
-    }, [socket, user]); 
+    }, [socket, user, navigation, showToast]);
 
     const handleFindMatch = () => {
         if (socket && !isSearching) {
@@ -88,10 +96,36 @@ export default function DashboardScreen() {
         }
     };
 
-    const handleCategoryPress = (category) => navigation.navigate('QuizList', { categoryId: category.id, categoryName: category.name });
+    const handleLogout = async () => {
+        try {
+            if (socket) {
+                socket.disconnect();
+            }
+            await logout();
+            leaveGame();
+            navigation.reset({
+                index: 0,
+                routes: [{ name: 'Welcome' }],
+            });
+        } catch (error) {
+            console.error('Logout error:', error);
+            showToast('Logout Failed', 'Could not log out properly', 'error');
+        }
+    };
+
+    const handleCategoryPress = (category) => {
+        navigation.navigate('QuizList', { 
+            categoryId: category.id, 
+            categoryName: category.name 
+        });
+    };
 
     if (authLoading) {
-        return <LinearGradient colors={["#1F2937", "#111827"]} style={styles.loadingContainer}><ActivityIndicator size="large" color="#8B5CF6" /></LinearGradient>;
+        return (
+            <LinearGradient colors={["#1F2937", "#111827"]} style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#8B5CF6" />
+            </LinearGradient>
+        );
     }
     
     if (!user) return null;
@@ -103,27 +137,47 @@ export default function DashboardScreen() {
                     <Text style={styles.welcomeText}>Welcome, {user.name}</Text>
                     <Text style={styles.eloText}>🏆 {user.eloRating} ELO</Text>
                 </View>
-                <TouchableOpacity onPress={logout}>
+                <TouchableOpacity onPress={handleLogout}>
                     <Icon name="logout" size={24} color="#9CA3AF" />
                 </TouchableOpacity>
             </View>
 
             <View style={styles.mainActions}>
-                <TouchableOpacity style={styles.actionButton} onPress={handleFindMatch}>
-                    <LinearGradient colors={['#8B5CF6', '#EC4899']} style={styles.actionGradient}>
+                <TouchableOpacity 
+                    style={styles.actionButton} 
+                    onPress={handleFindMatch}
+                    disabled={isSearching}
+                >
+                    <LinearGradient 
+                        colors={isSearching ? ['#6B7280', '#4B5563'] : ['#8B5CF6', '#EC4899']} 
+                        style={styles.actionGradient}
+                    >
                         <Icon name="bolt" size={24} color="#FFF" />
-                        <Text style={styles.actionText}>Quick Match</Text>
+                        <Text style={styles.actionText}>
+                            {isSearching ? 'Searching...' : 'Quick Match'}
+                        </Text>
                     </LinearGradient>
                 </TouchableOpacity>
-                 <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('QuickPlay')}>
-                    <LinearGradient colors={['#3B82F6', '#22D3EE']} style={styles.actionGradient}>
+                
+                <TouchableOpacity 
+                    style={styles.actionButton} 
+                    onPress={() => navigation.navigate('QuickPlay')}
+                    disabled={isSearching}
+                >
+                    <LinearGradient 
+                        colors={['#3B82F6', '#22D3EE']} 
+                        style={styles.actionGradient}
+                    >
                         <Icon name="login" size={24} color="#FFF" />
                         <Text style={styles.actionText}>Join with PIN</Text>
                     </LinearGradient>
                 </TouchableOpacity>
             </View>
             
-            <TouchableOpacity style={styles.createQuizButton} onPress={() => navigation.navigate('CreateQuiz')}>
+            <TouchableOpacity 
+                style={styles.createQuizButton} 
+                onPress={() => navigation.navigate('CreateQuiz')}
+            >
                 <Icon name="add-circle" size={24} color="#FFF" />
                 <Text style={styles.createQuizButtonText}>Create a New Quiz</Text>
             </TouchableOpacity>
@@ -140,7 +194,11 @@ export default function DashboardScreen() {
             ) : (
                 <View style={styles.featuredContainer}>
                     {featuredCategories.map(cat => (
-                        <TouchableOpacity key={cat.id} style={styles.categoryCard} onPress={() => handleCategoryPress(cat)}>
+                        <TouchableOpacity 
+                            key={cat.id} 
+                            style={styles.categoryCard} 
+                            onPress={() => handleCategoryPress(cat)}
+                        >
                             <Text style={styles.categoryText}>{cat.name}</Text>
                         </TouchableOpacity>
                     ))}
@@ -148,7 +206,7 @@ export default function DashboardScreen() {
             )}
 
             {isSearching && (
-                 <View style={styles.searchingOverlay}>
+                <View style={styles.searchingOverlay}>
                     <ActivityIndicator size="large" color="#FFF" />
                     <Text style={styles.searchingText}>Searching for an opponent...</Text>
                     <TouchableOpacity onPress={handleCancelSearch}>
@@ -161,24 +219,127 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, paddingTop: 60, },
-    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20 },
-    welcomeText: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },
-    eloText: { color: '#F59E0B', fontSize: 16, marginTop: 4 },
-    mainActions: { flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 20, marginBottom: 20, },
-    actionButton: { flex: 1, marginHorizontal: 8 },
-    actionGradient: { borderRadius: 12, paddingVertical: 16, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', elevation: 5 },
-    actionText: { color: '#FFF', fontSize: 16, fontWeight: 'bold', marginLeft: 8 },
-    createQuizButton: { marginHorizontal: 20, marginBottom: 30, backgroundColor: '#10B981', borderRadius: 12, padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-    createQuizButtonText: { color: '#FFF', fontSize: 18, fontWeight: 'bold', marginLeft: 10 },
-    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15, },
-    sectionTitle: { color: '#FFF', fontSize: 22, fontWeight: 'bold' },
-    viewAllText: { color: '#8B5CF6', fontSize: 14, fontWeight: 'bold' },
-    featuredContainer: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 15 },
-    categoryCard: { width: '45%', margin: '2.5%', aspectRatio: 1.5, backgroundColor: '#374151', borderRadius: 12, justifyContent: 'center', alignItems: 'center', padding: 10, elevation: 3 },
-    categoryText: { color: '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
-    searchingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' },
-    searchingText: { color: '#FFF', marginTop: 20, fontSize: 18 },
-    cancelSearchText: { color: '#F87171', marginTop: 20, fontSize: 16, textDecorationLine: 'underline' }
+    container: { 
+        flex: 1, 
+        paddingTop: 60, 
+    },
+    loadingContainer: { 
+        flex: 1, 
+        justifyContent: 'center', 
+        alignItems: 'center' 
+    },
+    header: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        paddingHorizontal: 20, 
+        marginBottom: 20 
+    },
+    welcomeText: { 
+        color: '#FFF', 
+        fontSize: 24, 
+        fontWeight: 'bold' 
+    },
+    eloText: { 
+        color: '#F59E0B', 
+        fontSize: 16, 
+        marginTop: 4 
+    },
+    mainActions: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-around', 
+        paddingHorizontal: 20, 
+        marginBottom: 20, 
+    },
+    actionButton: { 
+        flex: 1, 
+        marginHorizontal: 8 
+    },
+    actionGradient: { 
+        borderRadius: 12, 
+        paddingVertical: 16, 
+        paddingHorizontal: 12, 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        flexDirection: 'row', 
+        elevation: 5 
+    },
+    actionText: { 
+        color: '#FFF', 
+        fontSize: 16, 
+        fontWeight: 'bold', 
+        marginLeft: 8 
+    },
+    createQuizButton: { 
+        marginHorizontal: 20, 
+        marginBottom: 30, 
+        backgroundColor: '#10B981', 
+        borderRadius: 12, 
+        padding: 18, 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+    },
+    createQuizButtonText: { 
+        color: '#FFF', 
+        fontSize: 18, 
+        fontWeight: 'bold', 
+        marginLeft: 10 
+    },
+    sectionHeader: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        paddingHorizontal: 20, 
+        marginBottom: 15, 
+    },
+    sectionTitle: { 
+        color: '#FFF', 
+        fontSize: 22, 
+        fontWeight: 'bold' 
+    },
+    viewAllText: { 
+        color: '#8B5CF6', 
+        fontSize: 14, 
+        fontWeight: 'bold' 
+    },
+    featuredContainer: { 
+        flexDirection: 'row', 
+        flexWrap: 'wrap', 
+        paddingHorizontal: 15 
+    },
+    categoryCard: { 
+        width: '45%', 
+        margin: '2.5%', 
+        aspectRatio: 1.5, 
+        backgroundColor: '#374151', 
+        borderRadius: 12, 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        padding: 10, 
+        elevation: 3 
+    },
+    categoryText: { 
+        color: '#FFF', 
+        fontSize: 16, 
+        fontWeight: 'bold', 
+        textAlign: 'center' 
+    },
+    searchingOverlay: { 
+        ...StyleSheet.absoluteFillObject, 
+        backgroundColor: 'rgba(0,0,0,0.8)', 
+        justifyContent: 'center', 
+        alignItems: 'center' 
+    },
+    searchingText: { 
+        color: '#FFF', 
+        marginTop: 20, 
+        fontSize: 18 
+    },
+    cancelSearchText: { 
+        color: '#F87171', 
+        marginTop: 20, 
+        fontSize: 16, 
+        textDecorationLine: 'underline' 
+    }
 });

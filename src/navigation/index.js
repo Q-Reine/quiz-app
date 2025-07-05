@@ -78,6 +78,7 @@ export default function MainNavigator() {
      
       <Stack.Screen name="MainTabs" component={MainTabNavigator} />
       <Stack.Screen name="QuizList" component={QuizListScreen} />
+      <Stack.Screen name="Dashboard" component={DashboardScreen} />
       <Stack.Screen name="QuizDetail" component={QuizDetailScreen} />
       <Stack.Screen name="CreateQuiz" component={CreateQuizScreen} />
       <Stack.Screen name="EditQuiz" component={EditQuizScreen} />

@@ -11,7 +11,10 @@ import { useToast } from '../contexts/ToastContext';
 export default function QuizDetailScreen({ route, navigation }) {
     const { quizId } = route.params;
     const { user } = useAuth();
-    const { createGameSessionAPI } = useGame();
+    // ------------------- CHANGE 1: Destructure leaveGame -------------------
+    // Get the leaveGame function from the context to reset state.
+    const { createGameSessionAPI, leaveGame } = useGame();
+    // -----------------------------------------------------------------------
     const { isConnected } = useSocket();
     const { showToast } = useToast();
 
@@ -43,10 +46,15 @@ export default function QuizDetailScreen({ route, navigation }) {
    const handleStartGame = async () => {
     setIsHosting(true);
     try {
+        // -----------------------------------------------------------------------
+        // THE FIX: Reset the game state before creating a new game session.
+        // This clears out any old player lists or game PINs from the context,
+        // preventing a race condition where the state is cleared after joining.
+        leaveGame();
+        // -----------------------------------------------------------------------
        
         const pin = await createGameSessionAPI(quiz.id);
         if (pin) {
-            
             navigation.navigate('GameLobby', { 
                 pin, 
                 isHost: true, 
@@ -59,6 +67,7 @@ export default function QuizDetailScreen({ route, navigation }) {
         setIsHosting(false);
     }
 };
+
     const handleDeleteQuiz = () => {
         Alert.alert(
             "Delete Quiz",

@@ -1,5 +1,3 @@
-// GameBattleScreen.js
-
 import React, { useEffect, useState, useRef } from "react";
 import {
   View,
@@ -23,7 +21,7 @@ export default function GameBattleScreen() {
   const { socket } = useSocket();
   const { showToast } = useToast();
   const {
-    gameSession,
+    gamePin,
     players,
     setPlayers,
     currentQuestion,
@@ -51,16 +49,8 @@ export default function GameBattleScreen() {
     if (timeLeft <= 5 && timeLeft > 0) {
       Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.3,
-            duration: 500,
-            useNativeDriver: true
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true
-          })
+          Animated.timing(pulseAnim, { toValue: 1.3, duration: 500, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 500, useNativeDriver: true })
         ])
       ).start();
     } else {
@@ -69,12 +59,14 @@ export default function GameBattleScreen() {
   }, [timeLeft]);
 
   useEffect(() => {
-    if (!socket || !isFocused || !gameSession?.pin) return;
+    if (!socket || !isFocused || !gamePin) return;
 
     setConnectionError(false);
-    socket.emit("player_ready_for_question", { pin: gameSession.pin });
+    
+
 
     const handleNewQuestion = (question) => {
+      console.log("[BATTLE] Received new question:", question);
       setCurrentQuestion(question);
       setAnswerResult(null);
       setSelectedOptionId(null);
@@ -82,7 +74,7 @@ export default function GameBattleScreen() {
       setCorrectOptionId(null);
       setShowCorrectAnswer(false);
       setGamePhase("question");
-      setTimeLeft(null);
+      setTimeLeft(question.duration || 15); 
       setConnectionError(false);
     };
 
@@ -91,6 +83,7 @@ export default function GameBattleScreen() {
     };
 
     const handleShowLeaderboard = (leaderboardPlayers) => {
+      console.log("[BATTLE] Showing leaderboard");
       setShowCorrectAnswer(true);
       setTimeout(() => {
         setLeaderboard(leaderboardPlayers);
@@ -101,9 +94,9 @@ export default function GameBattleScreen() {
     };
 
     const handleAnswerResult = (result) => {
+      console.log("[BATTLE] Received answer result:", result);
       setAnswerResult(result);
       setCorrectOptionId(result.correctOptionId);
-
       if (result.isCorrect && result.scoreAwarded > 0) {
         setLocalScoreUpdate({
           playerName: user?.name,
@@ -113,6 +106,7 @@ export default function GameBattleScreen() {
     };
 
     const handleGameOver = (finalResults) => {
+      console.log("[BATTLE] Game over!");
       setLeaderboard(finalResults.players);
       setPlayers(finalResults.players);
       setGamePhase("finished");
@@ -122,7 +116,6 @@ export default function GameBattleScreen() {
     const handleGameError = ({ message }) => {
       setConnectionError(true);
       showToast("Game Error", message, "error");
-
       setTimeout(() => {
         if (message.includes("not found") || message.includes("cannot continue")) {
           leaveGame();
@@ -144,7 +137,7 @@ export default function GameBattleScreen() {
     const handleConnect = () => {
       setConnectionError(false);
       showToast("Reconnected", "Connection restored!", "success");
-      socket.emit("player_ready_for_question", { pin: gameSession.pin });
+   
     };
 
     const handlePlayerDisconnected = ({ playerId }) => {
@@ -180,8 +173,9 @@ export default function GameBattleScreen() {
       socket.off("connect", handleConnect);
       socket.off("player_disconnected", handlePlayerDisconnected);
     };
-  }, [socket, isFocused, gameSession?.pin, user?.name]);
+  }, [socket, isFocused, gamePin, user?.name]);
 
+  
   useEffect(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (gamePhase === "question" && isFocused && typeof timeLeft === "number" && timeLeft > 0) {
@@ -189,7 +183,6 @@ export default function GameBattleScreen() {
         setTimeLeft((prev) => {
           if (prev <= 1) {
             clearInterval(timerRef.current);
-            setShowCorrectAnswer(true); 
             return 0;
           }
           return prev - 1;
@@ -204,12 +197,7 @@ export default function GameBattleScreen() {
   const handleAnswerSelect = (optionId) => {
     if (selectedOptionId || answerResult || timeLeft === 0 || connectionError) return;
     setSelectedOptionId(optionId);
-    try {
-      submitAnswer(optionId);
-    } catch {
-      showToast("Error", "Failed to submit answer", "error");
-      setSelectedOptionId(null);
-    }
+    submitAnswer(optionId);
   };
 
   const getAnswerStyle = (optionId) => {
@@ -227,8 +215,6 @@ export default function GameBattleScreen() {
     return styles.answerButton;
   };
 
-  const me = players.find(p => p.nickname === user?.name) || { nickname: user?.name || 'You', score: 0 };
-
   if (connectionError) {
     return (
       <LinearGradient colors={["#1F2937", "#111827"]} style={styles.loadingContainer}>
@@ -239,8 +225,9 @@ export default function GameBattleScreen() {
       </LinearGradient>
     );
   }
-
-  if (gamePhase === "results" || gamePhase === "finished" || !currentQuestion) {
+  
+ 
+  if (gamePhase !== "question" || !currentQuestion) {
     return (
       <LinearGradient colors={["#1F2937", "#111827"]} style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FFF" />
@@ -270,7 +257,8 @@ export default function GameBattleScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.playersContainer}>
               {players.map((player) => (
                 <View
-                  key={player.nickname}
+                  
+                  key={player.id}
                   style={[styles.playerCard, localScoreUpdate?.playerName === player.nickname && styles.scoreHighlight]}
                 >
                   <Text style={styles.playerName} numberOfLines={1}>{player.nickname}</Text>
@@ -324,25 +312,25 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   contentWrapper: { flex: 1 },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 20 },
-  loadingText: { color: "#FFF", marginTop: 10, fontSize: 16 },
-  errorText: { color: "#EF4444", fontSize: 24, fontWeight: "bold", marginBottom: 10, textAlign: "center" },
+  loadingText: { color: "#FFF", marginTop: 20, fontSize: 16, fontWeight: '600' },
+  errorText: { color: "#EF4444", fontSize: 24, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
   leaveButton: { backgroundColor: "#EF4444", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
   leaveButtonText: { color: "#FFF", fontSize: 16, fontWeight: "bold" },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, marginBottom: 15 },
   questionCounter: { color: "#D1D5DB", fontSize: 16 },
-  timerContainer: { width: 50, height: 50, borderRadius: 25, backgroundColor: "rgba(255,255,255,0.2)", justifyContent: "center", alignItems: "center" },
+  timerContainer: { width: 50, height: 50, borderRadius: 25, backgroundColor: "rgba(255,255,255,0.2)", justifyContent: "center", alignItems: "center", borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)' },
   timerText: { color: "#FFF", fontSize: 20, fontWeight: "bold" },
   timerWarning: { color: "#FBBF24" },
-  timerCritical: { color: "#EF4444" },
+  timerCritical: { color: "#EF4444", textShadowColor: '#EF4444', textShadowRadius: 10 },
   playersScrollContainer: { paddingHorizontal: 10, marginBottom: 20 },
-  playersContainer: { flexDirection: "row", alignItems: "center" },
+  playersContainer: { flexDirection: "row", alignItems: "center", paddingRight: 20 },
   playerCard: { backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 8, padding: 12, marginHorizontal: 5, minWidth: 100 },
   scoreHighlight: { backgroundColor: "rgba(16,185,129,0.3)", borderWidth: 2, borderColor: "#10B981" },
-  playerName: { color: "#FFF", fontSize: 14, fontWeight: "bold" },
-  scoreContainer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  playerScore: { color: "#FFF", fontSize: 20, fontWeight: "bold", marginTop: 4 },
-  scoreAnimation: { color: "#10B981", fontSize: 16, fontWeight: "bold", marginTop: 4 },
-  questionContainer: { backgroundColor: "rgba(0,0,0,0.2)", padding: 20, marginHorizontal: 20, borderRadius: 12, minHeight: 120, justifyContent: "center", alignItems: "center" },
+  playerName: { color: "#FFF", fontSize: 14, fontWeight: "bold", marginBottom: 4 },
+  scoreContainer: { flexDirection: "row", alignItems: "flex-end" },
+  playerScore: { color: "#FFF", fontSize: 20, fontWeight: "bold" },
+  scoreAnimation: { color: "#10B981", fontSize: 16, fontWeight: "bold", marginLeft: 8, position: 'absolute', right: -20, top: -10 },
+  questionContainer: { backgroundColor: "rgba(0,0,0,0.2)", padding: 20, marginHorizontal: 20, borderRadius: 12, minHeight: 120, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   questionText: { color: "#FFF", fontSize: 22, fontWeight: "bold", textAlign: "center", lineHeight: 30 },
   answersContainer: { marginTop: 20, paddingHorizontal: 20 },
   answerButton: { backgroundColor: "rgba(255,255,255,0.1)", padding: 16, borderRadius: 12, marginBottom: 10, borderWidth: 2, borderColor: "transparent" },

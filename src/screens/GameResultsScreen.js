@@ -10,19 +10,23 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { useGame } from "../contexts/GameContext";
+
 import { useAuth } from "../contexts/AuthContext";
 
 const { width } = Dimensions.get("window");
 
 export default function GameResultsScreen() {
   const navigation = useNavigation();
-  const { leaderboard, leaveGame } = useGame();
-  const { user } = useAuth();
+  const { leaderboard, leaveGame, myNickname } = useGame();
+  
+ 
+  const { user } = useAuth(); 
 
   if (!leaderboard || leaderboard.length === 0) {
     return (
-      <LinearGradient colors={["#1F2937", "#8B5CF6", "#1F2937"]} style={styles.container}>
-        <Text style={styles.resultTitle}>Game Over</Text>
+      <LinearGradient colors={["#1F2937", "#8B5CF6", "#1F2937"]} style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={styles.title}>Game Over</Text>
+        <Text style={{color: '#D1D5DB', marginBottom: 20}}>No results to display.</Text>
         <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.navigate("Dashboard")}>
           <Text style={styles.secondaryButtonText}>Back to Dashboard</Text>
         </TouchableOpacity>
@@ -33,23 +37,33 @@ export default function GameResultsScreen() {
   const sorted = [...leaderboard].sort((a, b) => b.score - a.score);
   const top3 = sorted.slice(0, 3);
   const others = sorted.slice(3);
-  const userRank = sorted.findIndex(p => p.id === user.id) + 1;
-  const isWinner = userRank === 1;
+  
+  const myRank = sorted.findIndex(p => p.nickname === myNickname) + 1;
+  
+  const isWinner = myRank === 1;
   const isAlone = leaderboard.length === 1;
 
-  const handleLeave = () => {
-    leaveGame();
+
+
+ 
+  const handleGoToDashboard = () => {
+    leaveGame(); 
     navigation.navigate("Dashboard");
+  };
+
+  
+  const handlePlayAgain = () => {
+    leaveGame(); 
+    navigation.navigate("QuickPlay"); 
   };
 
   const getInitials = (name = "") => name.slice(0, 1).toUpperCase();
 
   return (
     <LinearGradient colors={["#1F2937", "#8B5CF6", "#1F2937"]} style={styles.container}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40, paddingTop: 60 }}>
         <Text style={styles.title}>Game Over</Text>
 
-        
         {isAlone ? (
           <View style={styles.soloContainer}>
             <Text style={styles.soloMessage}>You're the only challenger today. Well played!</Text>
@@ -57,17 +71,15 @@ export default function GameResultsScreen() {
           </View>
         ) : (
           <>
-          
             {isWinner && (
               <Text style={styles.confetti}>🎉🎉 Congratulations Champion 🎉🎉</Text>
             )}
 
-            
             <View style={styles.podium}>
               {top3[1] && (
                 <View style={[styles.podiumSpot, styles.second]}>
                   <View style={styles.avatar}><Text style={styles.avatarText}>{getInitials(top3[1].nickname)}</Text></View>
-                  <Text style={styles.name}>{top3[1].nickname}</Text>
+                  <Text style={styles.name} numberOfLines={1}>{top3[1].nickname}</Text>
                   <Text style={styles.points}>{top3[1].score} pt</Text>
                   <View style={[styles.tierBox, { height: 90 }]}><Text style={styles.tierNumber}>2</Text></View>
                 </View>
@@ -75,7 +87,7 @@ export default function GameResultsScreen() {
               {top3[0] && (
                 <View style={[styles.podiumSpot, styles.first]}>
                   <View style={styles.avatar}><Text style={styles.avatarText}>{getInitials(top3[0].nickname)}</Text></View>
-                  <Text style={styles.name}>{top3[0].nickname}</Text>
+                  <Text style={styles.name} numberOfLines={1}>{top3[0].nickname}</Text>
                   <Text style={styles.points}>{top3[0].score} pt</Text>
                   <View style={[styles.tierBox, { height: 120 }]}><Text style={styles.tierNumber}>1</Text></View>
                 </View>
@@ -83,22 +95,21 @@ export default function GameResultsScreen() {
               {top3[2] && (
                 <View style={[styles.podiumSpot, styles.third]}>
                   <View style={styles.avatar}><Text style={styles.avatarText}>{getInitials(top3[2].nickname)}</Text></View>
-                  <Text style={styles.name}>{top3[2].nickname}</Text>
+                  <Text style={styles.name} numberOfLines={1}>{top3[2].nickname}</Text>
                   <Text style={styles.points}>{top3[2].score} pt</Text>
                   <View style={[styles.tierBox, { height: 70 }]}><Text style={styles.tierNumber}>3</Text></View>
                 </View>
               )}
             </View>
 
-         
             <View style={styles.list}>
               {others.map((player, index) => {
-                const isUser = player.id === user.id;
+                const isMe = player.nickname === myNickname;
                 return (
-                  <View key={player.id} style={[styles.row, isUser && styles.youHighlight]}>
+                  <View key={player.id} style={[styles.row, isMe && styles.youHighlight]}>
                     <Text style={styles.rank}>{index + 4}</Text>
                     <View style={styles.avatarSmall}><Text style={styles.avatarText}>{getInitials(player.nickname)}</Text></View>
-                    <Text style={styles.playerName}>{isUser ? "YOU" : player.nickname}</Text>
+                    <Text style={styles.playerName} numberOfLines={1}>{isMe ? "YOU" : player.nickname}</Text>
                     <Text style={styles.playerScore}>{player.score} pt</Text>
                   </View>
                 );
@@ -109,13 +120,19 @@ export default function GameResultsScreen() {
 
        
         <View style={styles.buttons}>
-          <TouchableOpacity style={styles.playBtn} onPress={handleLeave}>
-            <Text style={styles.playBtnText}>Play Again</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryButton} onPress={handleLeave}>
-            <Text style={styles.secondaryButtonText}>Back to Dashboard</Text>
-          </TouchableOpacity>
+          {user ? (
+           
+            <TouchableOpacity style={styles.playBtn} onPress={handleGoToDashboard}>
+              <Text style={styles.playBtnText}>Back to Dashboard</Text>
+            </TouchableOpacity>
+          ) : (
+            
+            <TouchableOpacity style={styles.playBtn} onPress={handlePlayAgain}>
+              <Text style={styles.playBtnText}>Play Again</Text>
+            </TouchableOpacity>
+          )}
         </View>
+
       </ScrollView>
     </LinearGradient>
   );
@@ -127,7 +144,6 @@ const AVATAR_SMALL = 36;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 60,
   },
   title: {
     fontSize: 32,
@@ -145,6 +161,7 @@ const styles = StyleSheet.create({
   soloContainer: {
     alignItems: "center",
     marginTop: 40,
+    paddingHorizontal: 20
   },
   soloMessage: {
     color: "#D1D5DB",
@@ -157,6 +174,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     alignItems: "flex-end",
     marginBottom: 30,
+    paddingHorizontal: 10,
   },
   podiumSpot: {
     alignItems: "center",
@@ -170,6 +188,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 4,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.5)'
   },
   avatarText: {
     fontSize: 20,
@@ -211,6 +231,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
+    paddingHorizontal: 8,
     borderBottomColor: "rgba(255,255,255,0.1)",
     borderBottomWidth: 1,
   },
@@ -227,7 +248,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#4F46E5",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 8,
+    marginRight: 12,
   },
   playerName: {
     flex: 1,
@@ -240,7 +261,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   youHighlight: {
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(245, 158, 11, 0.15)",
     borderLeftWidth: 3,
     borderLeftColor: "#F59E0B",
     borderRadius: 4,
