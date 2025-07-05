@@ -1,4 +1,5 @@
-// src/navigation/index.js
+// src/navigation/index.js (Final Version)
+
 import React from 'react';
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -6,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../contexts/AuthContext";
 import LoadingScreen from "../components/LoadingScreen";
 
-
+// Import all your screens
 import WelcomeScreen from "../screens/WelcomeScreen";
 import AuthScreen from "../screens/AuthScreen";
 import DashboardScreen from "../screens/DashboardScreen";
@@ -70,25 +71,25 @@ export default function MainNavigator() {
       initialRouteName={user ? "MainTabs" : "Welcome"} 
       screenOptions={{ headerShown: false, gestureEnabled: false }}
     >
-     
+      {/* Screens available when the user is NOT logged in */}
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       <Stack.Screen name="Auth" component={AuthScreen} />
+      <Stack.Screen name="QuickPlay" component={QuickPlayScreen} />
 
-     
+      {/* Screens available when the user IS logged in */}
       <Stack.Screen name="MainTabs" component={MainTabNavigator} />
       <Stack.Screen name="QuizList" component={QuizListScreen} />
-      <Stack.Screen name="Dashboard" component={DashboardScreen} />
+    
       <Stack.Screen name="QuizDetail" component={QuizDetailScreen} />
       <Stack.Screen name="CreateQuiz" component={CreateQuizScreen} />
       <Stack.Screen name="EditQuiz" component={EditQuizScreen} />
       <Stack.Screen name="Categories" component={CategoriesScreen} />
       <Stack.Screen name="Matchmaking" component={MatchmakingScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-<Stack.Screen name="MyQuizzes" component={MyQuizzesScreen} />
+      <Stack.Screen name="MyQuizzes" component={MyQuizzesScreen} />
       
-      
-      <Stack.Screen name="QuickPlay" component={QuickPlayScreen} />
+      {/* Game flow screens, available to both logged in and guest users */}
       <Stack.Screen name="GameLobby" component={GameLobbyScreen} />
       <Stack.Screen name="GameBattle" component={GameBattleScreen} />
       <Stack.Screen name="GameResults" component={GameResultsScreen} />

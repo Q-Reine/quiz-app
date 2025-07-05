@@ -27,7 +27,7 @@ export default function GameResultsScreen() {
       <LinearGradient colors={["#1F2937", "#8B5CF6", "#1F2937"]} style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <Text style={styles.title}>Game Over</Text>
         <Text style={{color: '#D1D5DB', marginBottom: 20}}>No results to display.</Text>
-        <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.navigate("Dashboard")}>
+        <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.navigate("MainTabs")}>
           <Text style={styles.secondaryButtonText}>Back to Dashboard</Text>
         </TouchableOpacity>
       </LinearGradient>
@@ -48,7 +48,7 @@ export default function GameResultsScreen() {
  
   const handleGoToDashboard = () => {
     leaveGame(); 
-    navigation.navigate("Dashboard");
+    navigation.navigate("MainTabs");
   };
 
   
