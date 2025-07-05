@@ -1,5 +1,15 @@
 import { useState, useRef, useEffect } from "react"
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions, SafeAreaView, StatusBar } from "react-native"
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+  Dimensions,
+  SafeAreaView,
+  StatusBar,
+  ScrollView 
+} from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import Icon from "react-native-vector-icons/MaterialIcons"
 import * as Animatable from "react-native-animatable"
@@ -86,7 +96,6 @@ export default function OnboardingScreen({ navigation }) {
   ).current
 
   useEffect(() => {
-    
     floatingElements.forEach((element, index) => {
       const animateFloat = () => {
         Animated.parallel([
@@ -102,30 +111,14 @@ export default function OnboardingScreen({ navigation }) {
           }),
           Animated.loop(
             Animated.sequence([
-              Animated.timing(floatingRefs[index].opacity, {
-                toValue: 0.1,
-                duration: 2000,
-                useNativeDriver: true,
-              }),
-              Animated.timing(floatingRefs[index].opacity, {
-                toValue: 0.6,
-                duration: 2000,
-                useNativeDriver: true,
-              }),
+              Animated.timing(floatingRefs[index].opacity, { toValue: 0.1, duration: 2000, useNativeDriver: true, }),
+              Animated.timing(floatingRefs[index].opacity, { toValue: 0.6, duration: 2000, useNativeDriver: true, }),
             ]),
           ),
           Animated.loop(
             Animated.sequence([
-              Animated.timing(floatingRefs[index].scale, {
-                toValue: element.scale * 1.5,
-                duration: 3000,
-                useNativeDriver: true,
-              }),
-              Animated.timing(floatingRefs[index].scale, {
-                toValue: element.scale,
-                duration: 3000,
-                useNativeDriver: true,
-              }),
+              Animated.timing(floatingRefs[index].scale, { toValue: element.scale * 1.5, duration: 3000, useNativeDriver: true, }),
+              Animated.timing(floatingRefs[index].scale, { toValue: element.scale, duration: 3000, useNativeDriver: true, }),
             ]),
           ),
         ]).start(() => animateFloat())
@@ -133,7 +126,6 @@ export default function OnboardingScreen({ navigation }) {
       setTimeout(() => animateFloat(), index * 100)
     })
 
-    
     Animated.loop(
       Animated.timing(rotateAnim, {
         toValue: 1,
@@ -160,30 +152,13 @@ export default function OnboardingScreen({ navigation }) {
 
   const animateTransition = (callback) => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 0.8,
-        duration: 200,
-        useNativeDriver: true,
-      }),
+      Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true, }),
+      Animated.timing(scaleAnim, { toValue: 0.8, duration: 200, useNativeDriver: true, }),
     ]).start(() => {
       callback()
       Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 50,
-          friction: 8,
-          useNativeDriver: true,
-        }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true, }),
+        Animated.spring(scaleAnim, { toValue: 1, tension: 50, friction: 8, useNativeDriver: true, }),
       ]).start()
     })
   }
@@ -203,7 +178,7 @@ export default function OnboardingScreen({ navigation }) {
     <LinearGradient colors={currentSlide.gradient} style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={currentSlide.accentColor} />
 
-      {/* Floating background elements */}
+      
       {floatingElements.map((element, index) => (
         <Animated.View
           key={element.id}
@@ -223,7 +198,7 @@ export default function OnboardingScreen({ navigation }) {
         </Animated.View>
       ))}
 
-      {/* Rotating gradient circles */}
+      
       <Animated.View style={[styles.rotatingCircle, styles.circle1, { transform: [{ rotate: spin }] }]}>
         <LinearGradient colors={["rgba(255,255,255,0.1)", "transparent"]} style={styles.circleGradient} />
       </Animated.View>
@@ -232,58 +207,64 @@ export default function OnboardingScreen({ navigation }) {
       </Animated.View>
 
       <SafeAreaView style={styles.safeArea}>
-        {/* Header with skip button */}
+        {/* Header with skip button (Fixed) */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.skipButton} onPress={skipOnboarding}>
             <Text style={styles.skipText}>Skip</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Content */}
-        <Animated.View
-          style={[
-            styles.content,
-            {
-              opacity: fadeAnim,
-              transform: [{ scale: scaleAnim }],
-            },
-          ]}
+       
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          {/* Illustration with emoji */}
-          <Animatable.View animation="bounceIn" duration={1000} style={styles.illustrationContainer}>
-            <View style={styles.illustrationBackground}>
-              <LinearGradient
-                colors={["rgba(255,255,255,0.2)", "rgba(255,255,255,0.1)"]}
-                style={styles.illustrationGradient}
-              >
-                <Text style={styles.illustrationEmoji}>{currentSlide.illustration}</Text>
-                <View style={styles.iconContainer}>
-                  <Icon name={currentSlide.icon} size={40} color="rgba(255,255,255,0.9)" />
-                </View>
-              </LinearGradient>
-            </View>
-            <View style={[styles.illustrationGlow, { backgroundColor: `${currentSlide.accentColor}30` }]} />
-          </Animatable.View>
+          
+          <Animated.View
+            style={[
+              styles.content,
+              {
+                opacity: fadeAnim,
+                transform: [{ scale: scaleAnim }],
+              },
+            ]}
+          >
+           
+            <Animatable.View animation="bounceIn" duration={1000} style={styles.illustrationContainer}>
+              <View style={styles.illustrationBackground}>
+                <LinearGradient
+                  colors={["rgba(255,255,255,0.2)", "rgba(255,255,255,0.1)"]}
+                  style={styles.illustrationGradient}
+                >
+                  <Text style={styles.illustrationEmoji}>{currentSlide.illustration}</Text>
+                  <View style={styles.iconContainer}>
+                    <Icon name={currentSlide.icon} size={40} color="rgba(255,255,255,0.9)" />
+                  </View>
+                </LinearGradient>
+              </View>
+              <View style={[styles.illustrationGlow, { backgroundColor: `${currentSlide.accentColor}30` }]} />
+            </Animatable.View>
 
-          {/* Text content */}
-          <Animatable.View animation="fadeInUp" delay={300} style={styles.textContainer}>
-            <Text style={styles.title}>{currentSlide.title}</Text>
-            <Text style={styles.subtitle}>{currentSlide.subtitle}</Text>
-            <Text style={styles.description}>{currentSlide.description}</Text>
-          </Animatable.View>
+            {/* Text content */}
+            <Animatable.View animation="fadeInUp" delay={300} style={styles.textContainer}>
+              <Text style={styles.title}>{currentSlide.title}</Text>
+              <Text style={styles.subtitle}>{currentSlide.subtitle}</Text>
+              <Text style={styles.description}>{currentSlide.description}</Text>
+            </Animatable.View>
 
-          {/* Features list */}
-          <Animatable.View animation="fadeInUp" delay={600} style={styles.featuresContainer}>
-            {currentSlide.features.map((feature, index) => (
-              <Animatable.View key={index} animation="fadeInLeft" delay={800 + index * 200} style={styles.featureItem}>
-                <View style={[styles.featureDot, { backgroundColor: "rgba(255,255,255,0.8)" }]} />
-                <Text style={styles.featureText}>{feature}</Text>
-              </Animatable.View>
-            ))}
-          </Animatable.View>
-        </Animated.View>
+            {/* Features list */}
+            <Animatable.View animation="fadeInUp" delay={600} style={styles.featuresContainer}>
+              {currentSlide.features.map((feature, index) => (
+                <Animatable.View key={index} animation="fadeInLeft" delay={800 + index * 200} style={styles.featureItem}>
+                  <View style={[styles.featureDot, { backgroundColor: "rgba(255,255,255,0.8)" }]} />
+                  <Text style={styles.featureText}>{feature}</Text>
+                </Animatable.View>
+              ))}
+            </Animatable.View>
+          </Animated.View>
+        </ScrollView>
 
-        {/* Bottom navigation */}
+        {/* Bottom navigation (Fixed) */}
         <View style={styles.bottomSection}>
           <View style={styles.indicatorContainer}>
             {onboardingData.map((_, index) => (
@@ -396,11 +377,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
+  
+  scrollContent: {
+    flexGrow: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+  },
+ 
   content: {
-    flex: 1,
+    width: '100%',
     paddingHorizontal: 24,
-    justifyContent: "center",
-    alignItems: "center",
+    alignItems: 'center',
   },
   illustrationContainer: {
     position: "relative",
@@ -507,6 +494,7 @@ const styles = StyleSheet.create({
   bottomSection: {
     paddingHorizontal: 24,
     paddingBottom: 40,
+    paddingTop: 10, 
   },
   indicatorContainer: {
     flexDirection: "row",
